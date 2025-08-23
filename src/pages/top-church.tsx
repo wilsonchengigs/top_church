@@ -60,23 +60,26 @@ export default function PaymentSearch() {
     "皓軒",
   ];
   // 過濾出符合查詢條件的學員
-  const filtered = activities.flatMap((activity) => {
-    return activity.data
-      .filter(
-        (person) =>
-          person.name.includes(query) ||
-          person.phone.includes(query) ||
-          person.team.includes(query) ||
-          person.group.includes(query) ||
-          activity.activityName.includes(query)
-      )
-      .map((person) => ({
-        ...person,
-        activityName: activity.activityName,
-        activityId: activity.activityId,
-        activityPrice: activity.activityPrice,
-      }));
-  });
+  const filtered = activities
+    .map((activity) => {
+      return activity.data
+        .filter(
+          (person) =>
+            person.name.includes(query) ||
+            person.phone.includes(query) ||
+            person.team.includes(query) ||
+            person.group.includes(query) ||
+            activity.activityName.includes(query)
+        )
+        .map((person) => ({
+          ...person,
+          activityName: activity.activityName,
+          activityId: activity.activityId,
+          activityPrice: activity.activityPrice,
+        }));
+    })
+    .reduce((acc, curr) => acc.concat(curr), []);
+
   function formatDate(dateString: string): string {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return dateString; // 如果不是有效日期，返回原始字串
@@ -148,24 +151,24 @@ export default function PaymentSearch() {
       <Helmet>
         <title>Top Church 報名與繳費記錄查詢</title>
       </Helmet>
-      <Toaster 
+      <Toaster
         position="top-center"
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: "#363636",
+            color: "#fff",
           },
           success: {
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: "#4ade80",
+              secondary: "#fff",
             },
           },
           error: {
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: "#ef4444",
+              secondary: "#fff",
             },
           },
         }}
@@ -190,113 +193,113 @@ export default function PaymentSearch() {
           </div>
         </div>
         <div className="p-4">
-        <input
-          type="text"
-          className="w-full p-3 border border-gray-400 rounded-lg mb-4 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
-          placeholder="輸入姓名、電話、小組、活動名稱"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+          <input
+            type="text"
+            className="w-full p-3 border border-gray-400 rounded-lg mb-4 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
+            placeholder="輸入姓名、電話、小組、活動名稱"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
 
-        <div className="min-h-[120px] space-y-2">
-          {filtered.map((person) => (
-            <div
-              key={`${person.uid || person.phone || person.name}_${
-                person.activityId || ""
-              }_${person.name}`}
-              className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition"
-            >
-              <div>
-                <p className="font-medium text-gray-900">{person.name}</p>
-                <p className="text-sm text-gray-500">
-                  📱 {person.phone} ｜ 🏷️ {person.team} ｜ 📘{" "}
-                  {person.activityName}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedPerson(person);
-                  setCustomAmount(person.activityPrice);
-                }} // 顯示詳細資料
-                className={`px-4 cursor-pointer py-1 rounded-lg text-sm ${
-                  person["已繳費"]
-                    ? "bg-amber-900 text-white"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
+          <div className="min-h-[120px] space-y-2">
+            {filtered.map((person) => (
+              <div
+                key={`${person.uid || person.phone || person.name}_${
+                  person.activityId || ""
+                }_${person.name}`}
+                className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition"
               >
-                {person["已繳費"] ? "已繳費" : "標記為已繳費"}
-              </button>
-            </div>
-          ))}
-
-          {filtered.length === 0 && query && (
-            <p className="text-gray-500 text-center">查無符合資料</p>
-          )}
-        </div>
-
-        {/* 彈出詳細資料視窗 */}
-        {selectedPerson && (
-          <div className="fixed inset-0  bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded-lg max-w-4xl w-full shadow-lg relative">
-              <button
-                onClick={() => {
-                  setSelectedPerson(null);
-                  setCustomAmount(null);
-                }}
-                className="absolute top-2 right-2 px-4 py-2 bg-gray-500 text-white rounded-full cursor-pointer"
-              >
-                X
-              </button>
-              <h2 className="text-2xl font-bold mb-4">
-                {selectedPerson.name} {selectedPerson.activityName} 報名資訊{" "}
-              </h2>
-
-              {/* 垂直表格容器 */}
-              <div className="overflow-auto max-h-96">
-                <table className="w-full table-auto border-collapse">
-                  <tbody>
-                    {/* 渲染 selectedPerson 的資料 */}
-                    {Object.entries(selectedPerson)
-                      .filter(([key]) => !excludedKeys.includes(key))
-                      .map(([key, value]) => {
-                        const formattedKey =
-                          key && !isNaN(Date.parse(key))
-                            ? formatDate(key)
-                            : key;
-                        return (
-                          <tr key={`row-${key}`}>
-                            <th className="px-4 py-2 border text-left bg-gray-100">
-                              {keyMap[formattedKey as keyof typeof keyMap] ||
-                                formattedKey}
-                            </th>
-                            <td className="px-4 py-2 border">
-                              {JSON.stringify(value) || ""}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* 自訂金額輸入框 */}
-              <div className="flex items-center justify-center gap-2 my-4">
-                <label className="text-gray-700 font-medium">繳費金額:</label>
-                <input
-                  type="number"
-                  value={customAmount || ''}
-                  onChange={(e) => setCustomAmount(Number(e.target.value))}
-                  className="w-32 p-2 border border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
-                  placeholder="輸入金額"
-                />
-              </div>
-              
-              {/* 按鈕容器 */}
-              <div className="flex flex-row justify-center gap-4 my-4">
-                {/* 已繳費按鈕 */}
+                <div>
+                  <p className="font-medium text-gray-900">{person.name}</p>
+                  <p className="text-sm text-gray-500">
+                    📱 {person.phone} ｜ 🏷️ {person.team} ｜ 📘{" "}
+                    {person.activityName}
+                  </p>
+                </div>
                 <button
-                  onClick={() => markAsPaid(selectedPerson)}
-                  className={`cursor-pointer px-4 py-2 rounded-lg 
+                  onClick={() => {
+                    setSelectedPerson(person);
+                    setCustomAmount(person.activityPrice);
+                  }} // 顯示詳細資料
+                  className={`px-4 cursor-pointer py-1 rounded-lg text-sm ${
+                    person["已繳費"]
+                      ? "bg-amber-900 text-white"
+                      : "bg-blue-500 text-white hover:bg-blue-600"
+                  }`}
+                >
+                  {person["已繳費"] ? "已繳費" : "標記為已繳費"}
+                </button>
+              </div>
+            ))}
+
+            {filtered.length === 0 && query && (
+              <p className="text-gray-500 text-center">查無符合資料</p>
+            )}
+          </div>
+
+          {/* 彈出詳細資料視窗 */}
+          {selectedPerson && (
+            <div className="fixed inset-0  bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded-lg max-w-4xl w-full shadow-lg relative">
+                <button
+                  onClick={() => {
+                    setSelectedPerson(null);
+                    setCustomAmount(null);
+                  }}
+                  className="absolute top-2 right-2 px-4 py-2 bg-gray-500 text-white rounded-full cursor-pointer"
+                >
+                  X
+                </button>
+                <h2 className="text-2xl font-bold mb-4">
+                  {selectedPerson.name} {selectedPerson.activityName} 報名資訊{" "}
+                </h2>
+
+                {/* 垂直表格容器 */}
+                <div className="overflow-auto max-h-96">
+                  <table className="w-full table-auto border-collapse">
+                    <tbody>
+                      {/* 渲染 selectedPerson 的資料 */}
+                      {Object.entries(selectedPerson)
+                        .filter(([key]) => !excludedKeys.includes(key))
+                        .map(([key, value]) => {
+                          const formattedKey =
+                            key && !isNaN(Date.parse(key))
+                              ? formatDate(key)
+                              : key;
+                          return (
+                            <tr key={`row-${key}`}>
+                              <th className="px-4 py-2 border text-left bg-gray-100">
+                                {keyMap[formattedKey as keyof typeof keyMap] ||
+                                  formattedKey}
+                              </th>
+                              <td className="px-4 py-2 border">
+                                {JSON.stringify(value) || ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 自訂金額輸入框 */}
+                <div className="flex items-center justify-center gap-2 my-4">
+                  <label className="text-gray-700 font-medium">繳費金額:</label>
+                  <input
+                    type="number"
+                    value={customAmount || ""}
+                    onChange={(e) => setCustomAmount(Number(e.target.value))}
+                    className="w-32 p-2 border border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
+                    placeholder="輸入金額"
+                  />
+                </div>
+
+                {/* 按鈕容器 */}
+                <div className="flex flex-row justify-center gap-4 my-4">
+                  {/* 已繳費按鈕 */}
+                  <button
+                    onClick={() => markAsPaid(selectedPerson)}
+                    className={`cursor-pointer px-4 py-2 rounded-lg 
                           ${
                             paidUids.has(selectedPerson.uid) ||
                             selectedPerson["已繳費"]
@@ -304,42 +307,44 @@ export default function PaymentSearch() {
                               : "bg-blue-500 text-white hover:bg-blue-600"
                           } // 未繳費
                         `}
-                  disabled={
-                    paidUids.has(selectedPerson.uid) || selectedPerson["已繳費"]
-                  } // 按鈕禁用已繳費學員
-                >
-                  {paidUids.has(selectedPerson.uid) || selectedPerson["已繳費"]
-                    ? "學員已繳費"
-                    : "標記為已繳費"}
-                </button>
+                    disabled={
+                      paidUids.has(selectedPerson.uid) ||
+                      selectedPerson["已繳費"]
+                    } // 按鈕禁用已繳費學員
+                  >
+                    {paidUids.has(selectedPerson.uid) ||
+                    selectedPerson["已繳費"]
+                      ? "學員已繳費"
+                      : "標記為已繳費"}
+                  </button>
 
-                {/* Get Tree 按鈕 - 只在特定條件下顯示 */}
-                {selectedPerson.activityName === "日日有光_程式用" &&
-                  (paidUids.has(selectedPerson.uid) ||
-                    selectedPerson["已繳費"]) && (
-                    <button
-                      onClick={() => markAsPaid(selectedPerson, "tree")}
-                      className={`cursor-pointer px-4 py-2 rounded-lg ${
-                        treeRetrievedNames.has(selectedPerson.name) ||
+                  {/* Get Tree 按鈕 - 只在特定條件下顯示 */}
+                  {selectedPerson.activityName === "日日有光_程式用" &&
+                    (paidUids.has(selectedPerson.uid) ||
+                      selectedPerson["已繳費"]) && (
+                      <button
+                        onClick={() => markAsPaid(selectedPerson, "tree")}
+                        className={`cursor-pointer px-4 py-2 rounded-lg ${
+                          treeRetrievedNames.has(selectedPerson.name) ||
+                          selectedPerson["已領樹"]
+                            ? "bg-gray-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            : "bg-green-500 text-white hover:bg-green-600"
+                        }`}
+                        disabled={
+                          treeRetrievedNames.has(selectedPerson.name) ||
+                          selectedPerson["已領樹"]
+                        } // 禁用已取得樹的學員
+                      >
+                        {treeRetrievedNames.has(selectedPerson.name) ||
                         selectedPerson["已領樹"]
-                          ? "bg-gray-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                          : "bg-green-500 text-white hover:bg-green-600"
-                      }`}
-                      disabled={
-                        treeRetrievedNames.has(selectedPerson.name) ||
-                        selectedPerson["已領樹"]
-                      } // 禁用已取得樹的學員
-                    >
-                      {treeRetrievedNames.has(selectedPerson.name) ||
-                      selectedPerson["已領樹"]
-                        ? "會友已領樹"
-                        : "標記為已領樹"}
-                    </button>
-                  )}
+                          ? "會友已領樹"
+                          : "標記為已領樹"}
+                      </button>
+                    )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </>
