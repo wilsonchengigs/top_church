@@ -98,6 +98,7 @@ export default function PaymentSearch() {
         alert(data.message);
         setSelectedPerson(null);
       } else {
+        
         alert("繳費失敗：" + data.message);
       }
     } catch (error) {

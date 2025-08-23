@@ -1,109 +1,144 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import logo from "../assets/kvMain.webp";
 import BibleVerseLoader from "../components/BibleVerseLoader";
 import { toast } from "react-toastify";
+
+type PersonData = [string, string, string]; // [area, group, name]
+
+type SubmissionPayload = {
+  area: string;
+  group: string;
+  name: string;
+  status: boolean;
+  message: string;
+};
+
+const FORM_URL = "https://script.google.com/macros/s/AKfycbxfqI5p38pJLX8Cou-HOCCcA7LMH_x3Y2oxa0fuM-Ve2C3yYEf9y8hh9X5SvqSm07pf/exec";
+
+const BIBLE_VERSES = [
+  "凡事都有定期，天下萬務都有定時。 — 傳道書 3:1",
+  "你要專心仰賴耶和華，不可倚靠自己的聰明。 — 箴言 3:5",
+  "耶和華是我的牧者，我必不致缺乏。 — 詩篇 23:1",
+];
+
 export default function TopChurch() {
-  // 資料格式：[{區域, 組別, 姓名}]
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<PersonData[]>([]);
   const [loading, setLoading] = useState(true);
   const [allUnselected, setAllUnselected] = useState(false);
-
-  // 選擇狀態
   const [selectedArea, setSelectedArea] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [formMessage, setFormMessage] = useState("");
-  const formUrl =
-    "https://script.google.com/macros/s/AKfycbxfqI5p38pJLX8Cou-HOCCcA7LMH_x3Y2oxa0fuM-Ve2C3yYEf9y8hh9X5SvqSm07pf/exec";
-  const verses = [
-    "凡事都有定期，天下萬務都有定時。 — 傳道書 3:1",
-    "你要專心仰賴耶和華，不可倚靠自己的聰明。 — 箴言 3:5",
-    "耶和華是我的牧者，我必不致缺乏。 — 詩篇 23:1",
-  ];
-  // 取得所有牧區(區域)
-  const areas = Array.from(new Set(data.map((d) => d[0])));
+  const [showAllMode, setShowAllMode] = useState(false);
+  const areas = Array.from(new Set(data.map(([area]) => area)));
 
-  // 根據選擇的牧區取得組別
   const groups = selectedArea
     ? Array.from(
-        new Set(data.filter((d) => d[0] === selectedArea).map((d) => d[1]))
+        new Set(
+          data
+            .filter(([area]) => area === selectedArea)
+            .map(([, group]) => group)
+        )
       )
     : [];
 
-  // 根據牧區+組別取得人名
-  const names =
-    selectedArea && selectedGroup
+  const names = useMemo(() => {
+    if (showAllMode) {
+      return data.map(([, , name]) => name);
+    }
+    
+    return selectedArea && selectedGroup
       ? data
-          .filter((d) => d[0] === selectedArea && d[1] === selectedGroup)
-          .map((d) => d[2])
+          .filter(([area, group]) => area === selectedArea && group === selectedGroup)
+          .map(([, , name]) => name)
       : [];
+  }, [data, selectedArea, selectedGroup, showAllMode]);
+  
+  const allPersonsData = useMemo(() => {
+    return data.map(([area, group, name]) => ({ area, group, name }));
+  }, [data]);
 
-  // checkbox 改變
   const toggleName = (name: string) => {
-    setSelectedNames((prev: string[]) =>
+    setSelectedNames((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   };
   const handleSubmit = async () => {
     setLoading(true);
-    const payload = names.map((name) => ({
-      area: selectedArea,
-      group: selectedGroup,
-      name,
-      status: selectedNames.includes(name) ? true : false,
-      message: formMessage,
-    }));
+    
+    const payload: SubmissionPayload[] = showAllMode 
+      ? allPersonsData.map(({ area, group, name }) => ({
+          area,
+          group,
+          name,
+          status: selectedNames.includes(name),
+          message: formMessage,
+        }))
+      : names.map((name) => ({
+          area: selectedArea,
+          group: selectedGroup,
+          name,
+          status: selectedNames.includes(name),
+          message: formMessage,
+        }));
 
     try {
-      const res = await fetch(formUrl, {
+      const response = await fetch(FORM_URL, {
         method: "POST",
         headers: {
-          "Content-Type": "text/plain", // 注意：GAS 要接收 raw body，必須設為 text/plain
+          "Content-Type": "text/plain",
         },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP error: ${res.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
       }
 
-      await res.json(); // 後端回傳 JSON 字串
-      toast.success(`成功送出！`, {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
+      await response.json();
+      
+      showToast("成功送出！", "success");
+      resetForm();
     } catch (error) {
       console.error("送出失敗", error);
-      toast.error(` 送出失敗，請稍後再試`, {
-        position: "top-center",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
+      showToast("送出失敗，請稍後再試", "error");
     } finally {
-      setLoading(false); // 無論成功失敗都要結束 loading
-      setSelectedNames([]);
-      setSelectedGroup("");
-      setSelectedArea("");
-      setFormMessage("");
+      setLoading(false);
     }
   };
-  // 讀取資料：GET
+  
+  const showToast = (message: string, type: "success" | "error") => {
+    const toastConfig = {
+      position: "top-center" as const,
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+    };
+    
+    if (type === "success") {
+      toast.success(message, toastConfig);
+    } else {
+      toast.error(message, toastConfig);
+    }
+  };
+  
+  const resetForm = () => {
+    setSelectedNames([]);
+    setSelectedGroup("");
+    setSelectedArea("");
+    setFormMessage("");
+  };
   useEffect(() => {
-    async function fetchData() {
+    const fetchData = async () => {
       try {
-        const res = await fetch(formUrl);
-        const json = await res.json();
-        const converted = json
-          .map((item: { [key: string]: string }) => {
+        const response = await fetch(FORM_URL);
+        const json = await response.json();
+        
+        const converted: PersonData[] = json
+          .map((item: Record<string, string>) => {
             let area = "";
             let group = "";
             const people: string[] = [];
@@ -117,12 +152,11 @@ export default function TopChurch() {
               } else if (!group) {
                 group = strValue;
               } else if (people.length < 1) {
-                // ✅ 只抓一個人名（第三欄）
                 people.push(strValue);
               }
             });
 
-            return people.map((name) => [area, group, name]); // [['使徒', '2102', '丁曼娟']]
+            return people.map((name): PersonData => [area, group, name]);
           })
           .flat();
 
@@ -132,245 +166,188 @@ export default function TopChurch() {
       } finally {
         setLoading(false);
       }
-    }
+    };
+    
     fetchData();
   }, []);
 
-  if (loading) return <BibleVerseLoader verses={verses} />;
+  if (loading) return <BibleVerseLoader verses={BIBLE_VERSES} />;
 
   return (
-    <div
-      style={{
-        padding: 10,
-        maxWidth: 600,
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        backgroundColor: "#f9f9f9",
-        borderRadius: 12,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        color: "#333",
-      }}
-    >
+    <div className="p-4 max-w-2xl mx-auto bg-gray-50 rounded-xl shadow-lg text-gray-800 font-sans">
       <img
-        style={{
-          width: "100%",
-          height: "auto",
-          borderTopLeftRadius: "12px",
-          borderTopRightRadius: "12px",
-          cursor: "pointer",
-        }}
+        className="w-full h-auto rounded-t-xl cursor-pointer"
         src={logo}
         alt="新店行道會"
-        onClick={() => {
-          window.open("https://www.topchurch.net/", "_blank");
-        }}
+        onClick={() => window.open("https://www.topchurch.net/", "_blank")}
       />
 
-      {/* 牧區下拉 */}
-      <div style={{ marginBottom: 24 }}>
-        <label
-          style={{
-            fontWeight: "600",
-            fontSize: 16,
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          牧區：
-        </label>
-        {/* 牧區選單 */}
-        <select
-          value={selectedArea}
-          onChange={(e) => {
-            setSelectedArea(e.target.value);
-            setSelectedGroup("");
-            setSelectedNames([]);
-          }}
-          style={{
-            backgroundColor: "white",
-            color: "black",
-            width: "100%",
-            padding: "10px 12px",
-            fontSize: 16,
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            outline: "none",
-            transition: "border-color 0.3s",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#3498db")}
-          onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-        >
-          <option value="">請選擇牧區</option>
-          {areas.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <label className="block text-base font-semibold">
+            選擇模式：
+          </label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="mode"
+                checked={!showAllMode}
+                onChange={() => {
+                  setShowAllMode(false);
+                  setSelectedNames([]);
+                }}
+                className="cursor-pointer"
+              />
+              <span className="text-sm">按牧區組別</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="mode" 
+                checked={showAllMode}
+                onChange={() => {
+                  setShowAllMode(true);
+                  setSelectedArea("");
+                  setSelectedGroup("");
+                  setSelectedNames([]);
+                }}
+                className="cursor-pointer"
+              />
+              <span className="text-sm">顯示全部</span>
+            </label>
+          </div>
+        </div>
+        
+        {!showAllMode && (
+          <>
+            <label className="block text-base font-semibold mb-2">
+              牧區：
+            </label>
+            <select
+              value={selectedArea}
+              onChange={(e) => {
+                setSelectedArea(e.target.value);
+                setSelectedGroup("");
+                setSelectedNames([]);
+              }}
+              className="w-full px-3 py-2 text-base bg-white border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="">請選擇牧區</option>
+              {areas.map((area) => (
+                <option key={area} value={area}>
+                  {area}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
 
-      {/* 組別下拉 */}
-      <div style={{ marginBottom: 24 }}>
-        <label
-          style={{
-            fontWeight: "600",
-            fontSize: 16,
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          組別：
-        </label>
-        <select
-          disabled={!selectedArea}
-          value={selectedGroup}
-          onChange={(e) => {
-            setSelectedGroup(e.target.value);
-            setSelectedNames([]);
-          }}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            fontSize: 16,
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            outline: "none",
-            backgroundColor: !selectedArea ? "#eee" : "white",
-            cursor: !selectedArea ? "not-allowed" : "pointer",
-            transition: "border-color 0.3s",
-            color: !selectedArea ? "#888" : "black",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#3498db")}
-          onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-        >
-          <option value="">請選擇組別</option>
-          {groups.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!showAllMode && (
+        <div className="mb-6">
+          <label className="block text-base font-semibold mb-2">
+            組別：
+          </label>
+          <select
+            disabled={!selectedArea}
+            value={selectedGroup}
+            onChange={(e) => {
+              setSelectedGroup(e.target.value);
+              setSelectedNames([]);
+            }}
+            className={`w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:outline-none transition-colors ${
+              !selectedArea
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white text-black cursor-pointer focus:border-blue-500"
+            }`}
+          >
+            <option value="">請選擇組別</option>
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {/* checkbox 已完成第三梯次的組員： */}
-      <div style={{ marginBottom: 24 }}>
-        <label
-          style={{
-            fontWeight: "600",
-            fontSize: 16,
-            display: "block",
-            marginBottom: 8,
-          }}
-        >
-          已完成第三梯次的組員：
+      <div className="mb-6">
+        <label className="block text-base font-semibold mb-2">
+          已完成第三梯次的{showAllMode ? '學員' : '組員'}：
         </label>
-        <div
-          style={{
-            maxHeight: 200,
-            overflowY: "auto",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            backgroundColor: "#fff",
-            boxShadow: "inset 0 1px 4px rgba(0,0,0,0.05)",
-            paddingTop: 8,
-            paddingBottom: 8,
-          }}
-        >
-          {names.length === 0 && (
-            <div style={{ color: "#888", textAlign: "center", padding: 16 }}>
-              請先選擇牧區與組別
+        <div className="max-h-96 overflow-y-auto border border-gray-300 rounded-lg bg-white shadow-inner py-2">
+          {names.length === 0 ? (
+            <div className="text-gray-500 text-center py-4">
+              {showAllMode ? '載入中...' : '請先選擇牧區與組別'}
             </div>
-          )}
-          {/* 全選勾選框 */}
-          {names.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <label
-                style={{
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  userSelect: "none",
+          ) : (
+            <>
+              <SelectAllOption
+                isAllSelected={selectedNames.length === names.length}
+                onToggleAll={() => {
+                  if (selectedNames.length === names.length) {
+                    setSelectedNames([]);
+                  } else {
+                    setSelectedNames([...names]);
+                  }
                 }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedNames.length === names.length}
-                  onChange={() => {
-                    if (selectedNames.length === names.length) {
-                      setSelectedNames([]);
-                    } else {
-                      setSelectedNames([...names]);
-                    }
-                  }}
-                  style={{ marginRight: 8, cursor: "pointer" }}
-                />
-                全組完成
-              </label>
-            </div>
-          )}
-          {names.map((name) => (
-            <div key={name} style={{ marginBottom: 6 }}>
-              <label
-                style={{
-                  cursor: "pointer",
-                  userSelect: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 15,
+                label={showAllMode ? '全部完成' : '全組完成'}
+              />
+              
+              {showAllMode ? (
+                allPersonsData.map(({ area, group, name }) => (
+                  <div key={`${area}-${group}-${name}`} className="mb-2 px-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedNames.includes(name)}
+                        onChange={() => {
+                          if (allUnselected) {
+                            setAllUnselected(false);
+                          }
+                          toggleName(name);
+                        }}
+                        className="cursor-pointer"
+                      />
+                      <span>{name}</span>
+                      <span className="text-xs text-gray-500">({area} - {group})</span>
+                    </label>
+                  </div>
+                ))
+              ) : (
+                names.map((name) => (
+                  <NameCheckbox
+                    key={name}
+                    name={name}
+                    isSelected={selectedNames.includes(name)}
+                    onToggle={() => {
+                      if (allUnselected) {
+                        setAllUnselected(false);
+                      }
+                      toggleName(name);
+                    }}
+                  />
+                ))
+              )}
+              
+              <SelectAllOption
+                isAllSelected={allUnselected}
+                onToggleAll={() => {
+                  const nextValue = !allUnselected;
+                  setAllUnselected(nextValue);
+                  if (nextValue) {
+                    setSelectedNames([]);
+                  }
                 }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedNames.includes(name)}
-                  onChange={() => {
-                    if (allUnselected) {
-                      setAllUnselected(false);
-                    }
-                    toggleName(name);
-                  }}
-                  style={{ cursor: "pointer" }}
-                />
-                {name}
-              </label>
-            </div>
-          ))}
-          {/* 全組都不完成 */}
-          {names.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <label
-                style={{
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={allUnselected}
-                  onChange={() => {
-                    const nextValue = !allUnselected;
-                    setAllUnselected(nextValue);
-                    if (nextValue) {
-                      setSelectedNames([]); // 勾選「全組不完成」就清空選取
-                    }
-                  }}
-                  style={{ marginRight: 8, cursor: "pointer" }}
-                />
-                全組未完成
-              </label>
-            </div>
+                label={showAllMode ? '全部未完成' : '全組未完成'}
+              />
+            </>
           )}
         </div>
       </div>
-      {/* 訊息 */}
-      <div style={{ marginBottom: 32 }}>
-        <label
-          style={{
-            fontWeight: "600",
-            fontSize: 16,
-            display: "block",
-            marginBottom: 8,
-          }}
-        >
+      <div className="mb-8">
+        <label className="block text-base font-semibold mb-2">
           備註：
         </label>
         <textarea
@@ -378,52 +355,60 @@ export default function TopChurch() {
           value={formMessage}
           onChange={(e) => setFormMessage(e.target.value)}
           placeholder="請輸入備註..."
-          style={{
-            backgroundColor: "white",
-            color: "black",
-            width: "-webkit-fill-available",
-            padding: 12,
-            fontSize: 15,
-            borderRadius: 8,
-            border: "1px solid #ccc",
-            resize: "vertical",
-            outline: "none",
-            boxShadow: "inset 0 1px 4px rgba(0,0,0,0.1)",
-            transition: "border-color 0.3s",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#3498db")}
-          onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+          className="w-full px-3 py-3 text-sm bg-white border border-gray-300 rounded-lg resize-y focus:outline-none focus:border-blue-500 shadow-inner transition-colors"
         />
       </div>
 
       <button
         onClick={handleSubmit}
-        style={{
-          maxWidth: "none",
-          width: "100%",
-          padding: "14px 0",
-          fontSize: 18,
-          fontWeight: "600",
-          color: "white",
-          backgroundColor: "#3498db",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
-          boxShadow: "0 4px 8px rgba(52, 152, 219, 0.4)",
-          transition: "background-color 0.3s, box-shadow 0.3s",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "#2980b9";
-          e.currentTarget.style.boxShadow =
-            "0 6px 12px rgba(41, 128, 185, 0.6)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "#3498db";
-          e.currentTarget.style.boxShadow = "0 4px 8px rgba(52, 152, 219, 0.4)";
-        }}
+        className="w-full py-4 text-lg font-semibold text-white bg-blue-500 border-none rounded-lg cursor-pointer shadow-lg hover:bg-blue-600 hover:shadow-xl transition-all duration-300"
       >
         送出
       </button>
+    </div>
+  );
+}
+
+type SelectAllOptionProps = {
+  isAllSelected: boolean;
+  onToggleAll: () => void;
+  label: string;
+};
+
+function SelectAllOption({ isAllSelected, onToggleAll, label }: SelectAllOptionProps) {
+  return (
+    <div className="mb-3 px-2">
+      <label className="flex items-center gap-2 font-semibold cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={isAllSelected}
+          onChange={onToggleAll}
+          className="cursor-pointer"
+        />
+        {label}
+      </label>
+    </div>
+  );
+}
+
+type NameCheckboxProps = {
+  name: string;
+  isSelected: boolean;
+  onToggle: () => void;
+};
+
+function NameCheckbox({ name, isSelected, onToggle }: NameCheckboxProps) {
+  return (
+    <div className="mb-2 px-2">
+      <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggle}
+          className="cursor-pointer"
+        />
+        {name}
+      </label>
     </div>
   );
 }
