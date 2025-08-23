@@ -239,8 +239,17 @@ export default function PaymentSearch() {
 
           {/* 彈出詳細資料視窗 */}
           {selectedPerson && (
-            <div className="fixed inset-0  bg-opacity-50 flex justify-center items-center z-50">
-              <div className="bg-white p-6 rounded-lg max-w-4xl w-full shadow-lg relative">
+            <div 
+              className="fixed inset-0 bg-black/30 flex justify-center items-center z-50"
+              onClick={() => {
+                setSelectedPerson(null);
+                setCustomAmount(null);
+              }}
+            >
+              <div 
+                className="bg-white p-6 rounded-lg max-w-4xl w-full shadow-lg relative"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   onClick={() => {
                     setSelectedPerson(null);
