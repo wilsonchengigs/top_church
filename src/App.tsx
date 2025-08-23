@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Submit from "./pages/submit";
 import TopChurch from "./pages/top-church";
 import Habits from "./pages/habits";
-import HabitsRefactored from "./pages/habits_refactored";
 
 
 function App() {
@@ -13,7 +12,6 @@ function App() {
         <Route path="/top-church" element={<TopChurch />} />
         <Route path="/habits" element={<Habits />} />
         <Route path="/submit" element={<Submit />} />
-        <Route path="/habits_refactored" element={<HabitsRefactored />} />
         </Routes>
       </BrowserRouter>
     </div>
