@@ -59,6 +59,8 @@ export default function PaymentSearch() {
     "宥辰",
     "芳瑜",
     "皓軒",
+    "佳璇",
+    "姿吟"
   ];
   // 過濾出符合查詢條件的學員
   const filtered = activities
