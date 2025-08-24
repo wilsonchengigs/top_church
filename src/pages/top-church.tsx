@@ -203,9 +203,9 @@ export default function PaymentSearch() {
           />
 
           <div className="min-h-[120px] space-y-2">
-            {filtered.map((person) => (
+            {filtered.map((person,index) => (
               <div
-                key={`${person.uid || person.phone || person.name}_${
+                key={`${index}_${person.uid || person.phone || person.name}_${
                   person.activityId || ""
                 }_${person.name}`}
                 className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition"
