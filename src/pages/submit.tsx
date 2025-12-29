@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import logo from "../assets/kvMain.webp";
 import BibleVerseLoader from "../components/BibleVerseLoader";
 import { toast } from "react-toastify";
 
@@ -175,12 +174,6 @@ export default function TopChurch() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto bg-gray-50 rounded-xl shadow-lg text-gray-800 font-sans">
-      <img
-        className="w-full h-auto rounded-t-xl cursor-pointer"
-        src={logo}
-        alt="新店行道會"
-        onClick={() => window.open("https://www.topchurch.net/", "_blank")}
-      />
 
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
