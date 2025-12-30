@@ -267,7 +267,7 @@ export default function TopChurch() {
 
       <div className="mb-6">
         <label className="block text-base font-semibold mb-2">
-          已完成第三梯次的{showAllMode ? '學員' : '組員'}：
+          已完成第四梯次的{showAllMode ? '學員' : '組員'}：
         </label>
         <div className="max-h-96 overflow-y-auto border border-gray-300 rounded-lg bg-white shadow-inner py-2">
           {names.length === 0 ? (
