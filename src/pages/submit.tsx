@@ -12,7 +12,7 @@ type SubmissionPayload = {
   message: string;
 };
 
-const FORM_URL = "https://script.google.com/macros/s/AKfycbwdGml409OmPizvDARleIGRXQwlmFjdhlWOKXoCw6ep0-gmRACsAS_ZWLGwNcax4SOI7Q/exec";
+const FORM_URL = "https://script.google.com/macros/s/AKfycbzDTk-dzq4h5kXNuBKJld-sxFy5RYdftmY5htPjo68D2uB9tt7coLpEDLhwQ_zWhUBJgQ/exec";
 
 const BIBLE_VERSES = [
   "凡事都有定期，天下萬務都有定時。 — 傳道書 3:1",
