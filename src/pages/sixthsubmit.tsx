@@ -7,9 +7,9 @@ const SESSION_LABELS = ["第一次", "第二次", "第三次", "第四次", "第
 const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
 
 const GRAY_BADGE = (n: number) =>
-  `/src/assets/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
+  `/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
 const COLOR_BADGE = (n: number) =>
-  `/src/assets/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
+  `/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
 
 const STATUS = { NOT_REGISTERED: "尚報名", CHECKED: "✓", CROSSED: "✗" } as const;
 
