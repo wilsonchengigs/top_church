@@ -1,59 +1,93 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, CSSProperties } from "react";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkyg10DQolseMzmerKqvPjRZutThSKNipeBjVuCjmXRStEIupRNQXcBA17VghQhlS0fQ/exec";
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzkyg10DQolseMzmerKqvPjRZutThSKNipeBjVuCjmXRStEIupRNQXcBA17VghQhlS0fQ/exec";
 
 const SESSION_LABELS = ["第一次", "第二次", "第三次", "第四次", "第五次", "第六次"];
 const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
 
-const GRAY_BADGE  = (n) => `/src/assets/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
-const COLOR_BADGE = (n) => `/src/assets/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
+const GRAY_BADGE = (n: number) =>
+  `/src/assets/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
+const COLOR_BADGE = (n: number) =>
+  `/src/assets/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
 
-const STATUS = { NOT_REGISTERED: "尚報名", CHECKED: "✓", CROSSED: "✗" };
+const STATUS = { NOT_REGISTERED: "尚報名", CHECKED: "✓", CROSSED: "✗" } as const;
 
-// 第4-6次=日日有光（可補登「尚報名」）；第1-3次=1189（只能補登「✗」）
-const isSpecialSession = (s) => s >= 4;
+const isSpecialSession = (s: number) => s >= 4;
 
-// ── 搜尋 autocomplete hook ────────────────────────────────────
-function useSearchInput(allValues) {
-  const [query, setQuery]     = useState("");
-  const [open,  setOpen]      = useState(false);
-  const [active, setActive]   = useState(-1);
-  const ref = useRef(null);
+// ── Types ──────────────────────────────────────────────────────
+interface Person {
+  area: string;
+  group: string;
+  name: string;
+  sessions: Record<number, string>;
+}
 
-  const matches = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.trim().toLowerCase();
-    return allValues.filter(v => v.toLowerCase().includes(q)).slice(0, 12);
-  }, [query, allValues]);
+interface UpdateItem {
+  name: string;
+  session: number;
+}
+
+interface SubmitResultItem {
+  name: string;
+  session: number;
+  success: boolean;
+  reason?: string;
+}
+
+interface SubmitResultData {
+  success: boolean;
+  results?: SubmitResultItem[];
+  error?: string;
+}
+
+type PendingChecks = Record<string, boolean>;
+
+// ── Search autocomplete hook ───────────────────────────────────
+interface SearchInput {
+  query: string;
+  setQuery: (v: string) => void;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  active: number;
+  setActive: (fn: number | ((prev: number) => number)) => void;
+  ref: React.RefObject<HTMLDivElement | null>;
+}
+
+function useSearchInput(): SearchInput {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  return { query, setQuery, open, setOpen, active, setActive, matches, ref };
+  return { query, setQuery, open, setOpen, active, setActive, ref };
 }
 
 // ─────────────────────────────────────────────────────────────
 export default function AttendanceApp() {
-  const [allPeople,   setAllPeople]   = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [fetchError,  setFetchError]  = useState(false);
+  const [allPeople, setAllPeople] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
-  // 小組搜尋
-  const [selectedArea,  setSelectedArea]  = useState("");
+  const [selectedArea, setSelectedArea] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
-  const groupSearch = useSearchInput([]);   // populated below
+  const groupSearch = useSearchInput();
 
-  // 個人搜尋
   const [selectedName, setSelectedName] = useState("");
-  const nameSearch = useSearchInput([]);
+  const nameSearch = useSearchInput();
 
-  const [pendingChecks, setPendingChecks] = useState({});
-  const [note,        setNote]        = useState("");
-  const [submitting,  setSubmitting]  = useState(false);
-  const [submitResult,setSubmitResult]= useState(null);
+  const [pendingChecks, setPendingChecks] = useState<PendingChecks>({});
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<SubmitResultData | null>(null);
 
   useEffect(() => {
     fetch(SCRIPT_URL)
@@ -63,40 +97,42 @@ export default function AttendanceApp() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── 衍生資料 ────────────────────────────────────────────────
-  const areas = useMemo(() => [...new Set(allPeople.map((p) => p.area))].sort(), [allPeople]);
+  const areas = useMemo(
+    () => [...new Set(allPeople.map((p) => p.area))].sort(),
+    [allPeople]
+  );
 
   const groups = useMemo(() => {
     if (!selectedArea) return [];
-    return [...new Set(allPeople.filter((p) => p.area === selectedArea).map((p) => p.group))].sort();
+    return [
+      ...new Set(
+        allPeople.filter((p) => p.area === selectedArea).map((p) => p.group)
+      ),
+    ].sort();
   }, [allPeople, selectedArea]);
 
-  // 小組搜尋 — 顯示 "牧區 / 小組"
-  const groupOptions = useMemo(
-    () => groups.map(g => `${g}`),
-    [groups]
+  const groupOptions = useMemo(() => groups.map((g) => `${g}`), [groups]);
+
+  const allNames = useMemo(
+    () => [...new Set(allPeople.map((p) => p.name))].sort(),
+    [allPeople]
   );
 
-  // 所有姓名（for 個人搜尋）
-  const allNames = useMemo(() => [...new Set(allPeople.map(p => p.name))].sort(), [allPeople]);
-
-  // 小組模式 — 顯示此小組所有人
   const groupPeople = useMemo(() => {
     if (!selectedArea || !selectedGroup) return [];
-    return allPeople.filter((p) => p.area === selectedArea && p.group === selectedGroup);
+    return allPeople.filter(
+      (p) => p.area === selectedArea && p.group === selectedGroup
+    );
   }, [allPeople, selectedArea, selectedGroup]);
 
-  // 個人模式 — 找到此人（可能有多筆牧區）
   const namePeople = useMemo(() => {
     if (!selectedName) return [];
-    return allPeople.filter(p => p.name === selectedName);
+    return allPeople.filter((p) => p.name === selectedName);
   }, [allPeople, selectedName]);
 
-  // 目前展示的人員列表
   const people = selectedName ? namePeople : groupPeople;
-  const mode   = selectedName ? "name" : "group";
+  const mode = selectedName ? "name" : "group";
 
-  // ── 進階梯次完成率 ─────────────────────────────────────────
   const specialProgress = useMemo(() => {
     if (people.length === 0) return 0;
     let done = 0;
@@ -109,34 +145,36 @@ export default function AttendanceApp() {
     return Math.round((done / (3 * people.length)) * 100);
   }, [people, pendingChecks]);
 
-  // ── 送出按鈕亮度（黃色系） ────────────────────────────────
   const pendingCount = useMemo(
     () => Object.values(pendingChecks).filter(Boolean).length,
     [pendingChecks]
   );
 
-  // 黃色底，隨筆數增亮
-  const btnStyle = useMemo(() => {
-    const hasWork = pendingCount > 0 || note.trim();
+  const btnStyle = useMemo((): CSSProperties => {
+    const hasWork = pendingCount > 0 || note.trim().length > 0;
     if (!hasWork) {
-      return { backgroundColor: "#D4A017", opacity: 0.38, boxShadow: "none", transform: "scale(1)" };
+      return {
+        backgroundColor: "#D4A017",
+        opacity: 0.38,
+        boxShadow: "none",
+        transform: "scale(1)",
+      };
     }
     const t = Math.min(pendingCount / 10, 1);
-    // 從暗黃 → 亮黃
     const r = Math.round(212 + (255 - 212) * t);
     const g = Math.round(160 + (200 - 160) * t);
-    const b = Math.round(23  + (0   - 23)  * t);
+    const b = Math.round(23 + (0 - 23) * t);
     const glow = 4 + pendingCount * 3;
-    const alpha = 0.25 + pendingCount * 0.06;
+    const alpha = Math.min(0.25 + pendingCount * 0.06, 0.7);
     return {
       backgroundColor: `rgb(${r},${g},${b})`,
       opacity: 1,
-      boxShadow: `0 4px ${glow}px rgba(${r},${g},0,${Math.min(alpha, 0.7)})`,
+      boxShadow: `0 4px ${glow}px rgba(${r},${g},0,${alpha})`,
       transform: pendingCount > 3 ? "scale(1.01)" : "scale(1)",
     };
   }, [pendingCount, note]);
 
-  const toggleCheck = (name, session) => {
+  const toggleCheck = (name: string, session: number) => {
     const key = `${name}_${session}`;
     setPendingChecks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -146,14 +184,14 @@ export default function AttendanceApp() {
     setSubmitResult(null);
   };
 
-  const handleAreaChange = (area) => {
+  const handleAreaChange = (area: string) => {
     setSelectedArea(area);
     setSelectedGroup("");
     groupSearch.setQuery("");
     resetAll();
   };
 
-  const handleGroupSelect = (group) => {
+  const handleGroupSelect = (group: string) => {
     setSelectedGroup(group);
     groupSearch.setQuery(group);
     groupSearch.setOpen(false);
@@ -162,7 +200,7 @@ export default function AttendanceApp() {
     resetAll();
   };
 
-  const handleNameSelect = (name) => {
+  const handleNameSelect = (name: string) => {
     setSelectedName(name);
     nameSearch.setQuery(name);
     nameSearch.setOpen(false);
@@ -173,65 +211,81 @@ export default function AttendanceApp() {
   };
 
   const handleSubmit = async () => {
-    const hasWork = pendingCount > 0 || note.trim();
+    const hasWork = pendingCount > 0 || note.trim().length > 0;
     if (!hasWork || submitting) return;
 
-    const updates = [];
+    const updates: UpdateItem[] = [];
     for (const [key, checked] of Object.entries(pendingChecks)) {
       if (!checked) continue;
       const lastUnderscore = key.lastIndexOf("_");
-      updates.push({ name: key.slice(0, lastUnderscore), session: parseInt(key.slice(lastUnderscore + 1)) });
+      updates.push({
+        name: key.slice(0, lastUnderscore),
+        session: parseInt(key.slice(lastUnderscore + 1)),
+      });
     }
 
-    const payload = mode === "name"
-      ? { name: selectedName, updates, note }
-      : { area: selectedArea, group: selectedGroup, updates, note };
+    const payload =
+      mode === "name"
+        ? { name: selectedName, updates, note }
+        : { area: selectedArea, group: selectedGroup, updates, note };
 
-    setSubmitting(true); setSubmitResult(null);
+    setSubmitting(true);
+    setSubmitResult(null);
     try {
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data: SubmitResultData = await res.json();
       setSubmitResult(data);
       if (data.success) {
         const successKeys = new Set(
-          (data.results || []).filter((r) => r.success).map((r) => `${r.name}_${r.session}`)
+          (data.results || [])
+            .filter((r) => r.success)
+            .map((r) => `${r.name}_${r.session}`)
         );
         setAllPeople((prev) =>
           prev.map((p) => {
-            const updated = { ...p, sessions: { ...p.sessions } };
+            const updated: Person = { ...p, sessions: { ...p.sessions } };
             for (let s = 1; s <= 6; s++) {
               if (successKeys.has(`${p.name}_${s}`)) updated.sessions[s] = "✓";
             }
             return updated;
           })
         );
-        setPendingChecks({}); setNote("");
+        setPendingChecks({});
+        setNote("");
       }
     } catch (err) {
-      setSubmitResult({ success: false, error: err.toString() });
+      setSubmitResult({ success: false, error: (err as Error).toString() });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return (
-    <div style={S.container}><div style={S.card}>
-      <div style={S.loadingWrap}>
-        <div style={S.spinner} />
-        <p style={S.loadingText}>載入資料中，請稍候...</p>
+  if (loading)
+    return (
+      <div style={S.container}>
+        <div style={S.card}>
+          <div style={S.loadingWrap}>
+            <div style={S.spinner} />
+            <p style={S.loadingText}>載入資料中，請稍候...</p>
+          </div>
+        </div>
       </div>
-    </div></div>
-  );
+    );
 
-  if (fetchError) return (
-    <div style={S.container}><div style={S.card}>
-      <p style={{ color: "#DC2626", textAlign: "center" }}>⚠️ 資料載入失敗，請重新整理頁面</p>
-    </div></div>
-  );
+  if (fetchError)
+    return (
+      <div style={S.container}>
+        <div style={S.card}>
+          <p style={{ color: "#DC2626", textAlign: "center" }}>
+            ⚠️ 資料載入失敗，請重新整理頁面
+          </p>
+        </div>
+      </div>
+    );
 
   const showTable = people.length > 0;
 
@@ -243,7 +297,7 @@ export default function AttendanceApp() {
           <p style={S.subtitle}>可依小組查詢，或直接搜尋個人姓名</p>
         </div>
 
-        {/* ── 牧區選擇 ─────────────────────────────────────── */}
+        {/* ── 牧區 ── */}
         <div style={S.section}>
           <label style={S.label}>牧區</label>
           <select
@@ -252,11 +306,15 @@ export default function AttendanceApp() {
             onChange={(e) => handleAreaChange(e.target.value)}
           >
             <option value="">請選擇牧區</option>
-            {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+            {areas.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* ── 小組搜尋 Autocomplete ─────────────────────────── */}
+        {/* ── 小組 Autocomplete ── */}
         <div style={S.section}>
           <label style={S.label}>小組（輸入搜尋）</label>
           <div ref={groupSearch.ref} style={{ position: "relative" }}>
@@ -269,20 +327,36 @@ export default function AttendanceApp() {
                 groupSearch.setQuery(e.target.value);
                 groupSearch.setOpen(true);
                 groupSearch.setActive(-1);
-                if (!e.target.value) { setSelectedGroup(""); resetAll(); }
+                if (!e.target.value) {
+                  setSelectedGroup("");
+                  resetAll();
+                }
               }}
               onFocus={() => groupSearch.setOpen(true)}
               onKeyDown={(e) => {
-                const opts = groupOptions.filter(g => g.toLowerCase().includes(groupSearch.query.toLowerCase()));
-                if (e.key === "ArrowDown") { groupSearch.setActive(a => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
-                else if (e.key === "ArrowUp") { groupSearch.setActive(a => Math.max(a - 1, 0)); e.preventDefault(); }
-                else if (e.key === "Enter" && groupSearch.active >= 0) { handleGroupSelect(opts[groupSearch.active]); }
-                else if (e.key === "Escape") { groupSearch.setOpen(false); }
+                const opts = groupOptions.filter((g) =>
+                  g.toLowerCase().includes(groupSearch.query.toLowerCase())
+                );
+                if (e.key === "ArrowDown") {
+                  groupSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
+                  e.preventDefault();
+                } else if (e.key === "ArrowUp") {
+                  groupSearch.setActive((a) => Math.max(a - 1, 0));
+                  e.preventDefault();
+                } else if (e.key === "Enter" && groupSearch.active >= 0) {
+                  handleGroupSelect(opts[groupSearch.active]);
+                } else if (e.key === "Escape") {
+                  groupSearch.setOpen(false);
+                }
               }}
             />
             {groupSearch.open && selectedArea && (
               <Dropdown
-                options={groupOptions.filter(g => !groupSearch.query || g.toLowerCase().includes(groupSearch.query.toLowerCase()))}
+                options={groupOptions.filter(
+                  (g) =>
+                    !groupSearch.query ||
+                    g.toLowerCase().includes(groupSearch.query.toLowerCase())
+                )}
                 active={groupSearch.active}
                 onSelect={handleGroupSelect}
                 onHover={(i) => groupSearch.setActive(i)}
@@ -291,7 +365,7 @@ export default function AttendanceApp() {
           </div>
         </div>
 
-        {/* ── 個人姓名搜尋 ──────────────────────────────────── */}
+        {/* ── 個人搜尋 ── */}
         <div style={S.section}>
           <label style={S.label}>個人搜尋（直接輸入姓名）</label>
           <div ref={nameSearch.ref} style={{ position: "relative" }}>
@@ -303,20 +377,34 @@ export default function AttendanceApp() {
                 nameSearch.setQuery(e.target.value);
                 nameSearch.setOpen(true);
                 nameSearch.setActive(-1);
-                if (!e.target.value) { setSelectedName(""); resetAll(); }
+                if (!e.target.value) {
+                  setSelectedName("");
+                  resetAll();
+                }
               }}
               onFocus={() => nameSearch.setOpen(true)}
               onKeyDown={(e) => {
-                const opts = allNames.filter(n => n.includes(nameSearch.query));
-                if (e.key === "ArrowDown") { nameSearch.setActive(a => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
-                else if (e.key === "ArrowUp") { nameSearch.setActive(a => Math.max(a - 1, 0)); e.preventDefault(); }
-                else if (e.key === "Enter" && nameSearch.active >= 0) { handleNameSelect(opts[nameSearch.active]); }
-                else if (e.key === "Escape") { nameSearch.setOpen(false); }
+                const opts = allNames.filter((n) =>
+                  n.includes(nameSearch.query)
+                );
+                if (e.key === "ArrowDown") {
+                  nameSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
+                  e.preventDefault();
+                } else if (e.key === "ArrowUp") {
+                  nameSearch.setActive((a) => Math.max(a - 1, 0));
+                  e.preventDefault();
+                } else if (e.key === "Enter" && nameSearch.active >= 0) {
+                  handleNameSelect(opts[nameSearch.active]);
+                } else if (e.key === "Escape") {
+                  nameSearch.setOpen(false);
+                }
               }}
             />
             {nameSearch.open && nameSearch.query && (
               <Dropdown
-                options={allNames.filter(n => n.includes(nameSearch.query)).slice(0, 12)}
+                options={allNames
+                  .filter((n) => n.includes(nameSearch.query))
+                  .slice(0, 12)}
                 active={nameSearch.active}
                 onSelect={handleNameSelect}
                 onHover={(i) => nameSearch.setActive(i)}
@@ -325,7 +413,7 @@ export default function AttendanceApp() {
           </div>
         </div>
 
-        {/* ── 出席表 ───────────────────────────────────────── */}
+        {/* ── 出席表 ── */}
         {showTable && (
           <div style={S.section}>
             <label style={S.label}>
@@ -338,34 +426,67 @@ export default function AttendanceApp() {
             <div style={S.legend}>
               <div style={S.legendGroup}>
                 <span style={S.legendTitle}>1189</span>
-                <LegendItem imgGray imgSrc={GRAY_BADGE(1)}  label="尚報名（不可補登）" />
-                <LegendItem imgSrc={GRAY_BADGE(1)} border   label="未完成（可補登）" />
-                <LegendItem imgSrc={COLOR_BADGE(1)}          label="已完成" />
-                <LegendItem imgSrc={COLOR_BADGE(1)} pending  label="待送出" />
+                <LegendItem imgGray imgSrc={GRAY_BADGE(1)} label="尚報名（不可補登）" />
+                <LegendItem imgSrc={GRAY_BADGE(1)} border label="未完成（可補登）" />
+                <LegendItem imgSrc={COLOR_BADGE(1)} label="已完成" />
+                <LegendItem imgSrc={COLOR_BADGE(1)} pending label="待送出" />
               </div>
-              <div style={{ ...S.legendGroup, borderLeft: "2px solid #DDD6FE", paddingLeft: 12 }}>
-                <span style={{ ...S.legendTitle, color: "#7C3AED" }}>日日有光</span>
-                <LegendItem imgSrc={GRAY_BADGE(4)} border   label="尚報名（可補登）" special />
-                <LegendItem imgSrc={GRAY_BADGE(4)} border   label="未完成（可補登）" special />
-                <LegendItem imgSrc={COLOR_BADGE(4)}          label="已完成" special />
+              <div
+                style={{
+                  ...S.legendGroup,
+                  borderLeft: "2px solid #DDD6FE",
+                  paddingLeft: 12,
+                }}
+              >
+                <span style={{ ...S.legendTitle, color: "#7C3AED" }}>
+                  日日有光
+                </span>
+                <LegendItem
+                  imgSrc={GRAY_BADGE(4)}
+                  border
+                  label="尚報名（可補登）"
+                  special
+                />
+                <LegendItem
+                  imgSrc={GRAY_BADGE(4)}
+                  border
+                  label="未完成（可補登）"
+                  special
+                />
+                <LegendItem imgSrc={COLOR_BADGE(4)} label="已完成" special />
               </div>
             </div>
 
             {/* 欄位標題 */}
             <div style={S.tableHeader}>
-              <div style={{ ...S.nameCol, fontWeight: 600, fontSize: 12, color: "#475569" }}>姓名</div>
+              <div
+                style={{
+                  ...S.nameCol,
+                  fontWeight: 600,
+                  fontSize: 12,
+                  color: "#475569",
+                }}
+              >
+                姓名
+              </div>
               <div style={S.sessionGroupLabel}>1189</div>
-              <div style={{ ...S.sessionGroupLabel, ...S.specialGroupLabel }}>日日有光</div>
+              <div style={{ ...S.sessionGroupLabel, ...S.specialGroupLabel }}>
+                日日有光
+              </div>
             </div>
             <div style={S.tableSubHeader}>
               <div style={S.nameCol} />
-              {[1,2,3,4,5,6].map((s) => (
-                <div key={s} style={{
-                  ...S.sessionCol,
-                  ...(isSpecialSession(s) ? S.specialColHeader : {}),
-                  fontWeight: 600, fontSize: 11,
-                  color: isSpecialSession(s) ? "#7C3AED" : "#475569",
-                }}>
+              {[1, 2, 3, 4, 5, 6].map((s) => (
+                <div
+                  key={s}
+                  style={{
+                    ...S.sessionCol,
+                    ...(isSpecialSession(s) ? S.specialColHeader : {}),
+                    fontWeight: 600,
+                    fontSize: 11,
+                    color: isSpecialSession(s) ? "#7C3AED" : "#475569",
+                  }}
+                >
                   {SESSION_LABELS[s - 1]}
                 </div>
               ))}
@@ -383,20 +504,22 @@ export default function AttendanceApp() {
               ))}
             </div>
 
-            {/* 日日有光完成率 */}
+            {/* 完成率 */}
             <div style={S.progressBar}>
               <div style={S.progressInner}>
                 <span style={S.progressLabel}>日日有光完成率</span>
                 <span style={S.progressPct}>{specialProgress}%</span>
               </div>
               <div style={S.progressTrack}>
-                <div style={{ ...S.progressFill, width: `${specialProgress}%` }} />
+                <div
+                  style={{ ...S.progressFill, width: `${specialProgress}%` }}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* ── 備註 ─────────────────────────────────────────── */}
+        {/* ── 備註 ── */}
         {showTable && (
           <div style={S.section}>
             <label style={S.label}>備註</label>
@@ -410,15 +533,18 @@ export default function AttendanceApp() {
           </div>
         )}
 
-        {submitResult && <SubmitResult result={submitResult} />}
+        {submitResult && <SubmitResultBox result={submitResult} />}
 
-        {/* ── 送出按鈕（黃色） ─────────────────────────────── */}
+        {/* ── 送出按鈕 ── */}
         {showTable && (
           <button
             style={{
               ...S.submitBtn,
               ...btnStyle,
-              cursor: (pendingCount === 0 && !note.trim()) || submitting ? "not-allowed" : "pointer",
+              cursor:
+                (pendingCount === 0 && !note.trim()) || submitting
+                  ? "not-allowed"
+                  : "pointer",
             }}
             onClick={handleSubmit}
             disabled={(pendingCount === 0 && !note.trim()) || submitting}
@@ -435,17 +561,25 @@ export default function AttendanceApp() {
   );
 }
 
-// ──────────────────────────────────────────────
-// Dropdown
-// ──────────────────────────────────────────────
-function Dropdown({ options, active, onSelect, onHover }) {
+// ── Dropdown ───────────────────────────────────────────────────
+interface DropdownProps {
+  options: string[];
+  active: number;
+  onSelect: (v: string) => void;
+  onHover: (i: number) => void;
+}
+
+function Dropdown({ options, active, onSelect, onHover }: DropdownProps) {
   if (options.length === 0) return null;
   return (
     <div style={S.dropdown}>
       {options.map((opt, i) => (
         <div
           key={opt}
-          style={{ ...S.dropdownItem, ...(i === active ? S.dropdownItemActive : {}) }}
+          style={{
+            ...S.dropdownItem,
+            ...(i === active ? S.dropdownItemActive : {}),
+          }}
           onMouseDown={() => onSelect(opt)}
           onMouseEnter={() => onHover(i)}
         >
@@ -456,22 +590,34 @@ function Dropdown({ options, active, onSelect, onHover }) {
   );
 }
 
-// ──────────────────────────────────────────────
-// PersonRow
-// ──────────────────────────────────────────────
-function PersonRow({ person, pendingChecks, onToggle, showArea }) {
+// ── PersonRow ──────────────────────────────────────────────────
+interface PersonRowProps {
+  person: Person;
+  pendingChecks: PendingChecks;
+  onToggle: (name: string, session: number) => void;
+  showArea: boolean;
+}
+
+function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonRowProps) {
   return (
     <div style={S.tableRow}>
       <div style={S.nameCol}>
-        {showArea && <span style={{ fontSize: 10, color: "#94A3B8", marginRight: 4 }}>[{person.area}]</span>}
+        {showArea && (
+          <span style={{ fontSize: 10, color: "#94A3B8", marginRight: 4 }}>
+            [{person.area}]
+          </span>
+        )}
         {person.name}
       </div>
-      {[1,2,3,4,5,6].map((session) => {
-        const status    = person.sessions[session];
+      {[1, 2, 3, 4, 5, 6].map((session) => {
+        const status = person.sessions[session];
         const isPending = !!pendingChecks[`${person.name}_${session}`];
-        const special   = isSpecialSession(session);
+        const special = isSpecialSession(session);
         return (
-          <div key={session} style={{ ...S.sessionCol, ...(special ? S.specialCol : {}) }}>
+          <div
+            key={session}
+            style={{ ...S.sessionCol, ...(special ? S.specialCol : {}) }}
+          >
             <SessionCell
               session={session}
               status={status}
@@ -485,40 +631,65 @@ function PersonRow({ person, pendingChecks, onToggle, showArea }) {
   );
 }
 
-// ──────────────────────────────────────────────
-// SessionCell
-// ──────────────────────────────────────────────
-function SessionCell({ session, status, isPending, onClick }) {
+// ── SessionCell ────────────────────────────────────────────────
+interface SessionCellProps {
+  session: number;
+  status: string;
+  isPending: boolean;
+  onClick: () => void;
+}
+
+function SessionCell({ session, status, isPending, onClick }: SessionCellProps) {
   const SIZE = 32;
   const special = isSpecialSession(session);
 
-  // 已完成：彩色 badge，不可動
   if (status === STATUS.CHECKED) {
     return (
-      <div title="已完成" style={{ width: SIZE, height: SIZE, cursor: "not-allowed" }}>
-        <img src={COLOR_BADGE(session)} alt="" width={SIZE} height={SIZE} style={{ display: "block" }} />
+      <div
+        title="已完成"
+        style={{ width: SIZE, height: SIZE, cursor: "not-allowed" }}
+      >
+        <img
+          src={COLOR_BADGE(session)}
+          alt=""
+          width={SIZE}
+          height={SIZE}
+          style={{ display: "block" }}
+        />
       </div>
     );
   }
 
-  // 1189（第1-3次）：尚報名 → 灰色實心，不可補登
   if (!special && status === STATUS.NOT_REGISTERED) {
     return (
-      <div title="尚未報名，不可補登" style={{ width: SIZE, height: SIZE, cursor: "not-allowed", opacity: 0.35 }}>
-        <img src={GRAY_BADGE(session)} alt="" width={SIZE} height={SIZE} style={{ display: "block" }} />
+      <div
+        title="尚未報名，不可補登"
+        style={{ width: SIZE, height: SIZE, cursor: "not-allowed", opacity: 0.35 }}
+      >
+        <img
+          src={GRAY_BADGE(session)}
+          alt=""
+          width={SIZE}
+          height={SIZE}
+          style={{ display: "block" }}
+        />
       </div>
     );
   }
 
-  // 可補登（✗，或日日有光的尚報名）：點擊切換
-  const canToggle = status === STATUS.CROSSED || (special && status === STATUS.NOT_REGISTERED);
+  const canToggle =
+    status === STATUS.CROSSED ||
+    (special && status === STATUS.NOT_REGISTERED);
+
   if (canToggle) {
     return (
       <div
         onClick={onClick}
         title={isPending ? "點擊取消" : "點擊補登記為完成"}
         style={{
-          width: SIZE, height: SIZE, cursor: "pointer",
+          width: SIZE,
+          height: SIZE,
+          cursor: "pointer",
           borderRadius: "50%",
           outline: isPending ? "2.5px solid #6D28D9" : "2px solid transparent",
           outlineOffset: "2px",
@@ -530,36 +701,56 @@ function SessionCell({ session, status, isPending, onClick }) {
           alt=""
           width={SIZE}
           height={SIZE}
-          style={{ display: "block", opacity: isPending ? 1 : (special ? 0.65 : 0.55) }}
+          style={{
+            display: "block",
+            opacity: isPending ? 1 : special ? 0.65 : 0.55,
+          }}
         />
       </div>
     );
   }
 
-  return <div style={{ width: SIZE, height: SIZE, borderRadius: 4, background: "#E5E7EB" }} />;
+  return (
+    <div
+      style={{
+        width: SIZE,
+        height: SIZE,
+        borderRadius: 4,
+        background: "#E5E7EB",
+      }}
+    />
+  );
 }
 
-// ──────────────────────────────────────────────
-// SubmitResult
-// ──────────────────────────────────────────────
-function SubmitResult({ result }) {
-  if (!result) return null;
+// ── SubmitResultBox ────────────────────────────────────────────
+function SubmitResultBox({ result }: { result: SubmitResultData }) {
   const successItems = (result.results || []).filter((r) => r.success);
-  const failedItems  = (result.results || []).filter((r) => !r.success);
+  const failedItems = (result.results || []).filter((r) => !r.success);
   return (
-    <div style={{
-      margin: "16px 0", padding: "12px 16px", borderRadius: 8,
-      backgroundColor: result.success ? "#F0FDF4" : "#FEF2F2",
-      border: `1px solid ${result.success ? "#BBF7D0" : "#FECACA"}`,
-    }}>
+    <div
+      style={{
+        margin: "16px 0",
+        padding: "12px 16px",
+        borderRadius: 8,
+        backgroundColor: result.success ? "#F0FDF4" : "#FEF2F2",
+        border: `1px solid ${result.success ? "#BBF7D0" : "#FECACA"}`,
+      }}
+    >
       {result.success ? (
         <>
-          <p style={{ margin: 0, color: "#15803D", fontWeight: 600 }}>✅ 成功更新 {successItems.length} 筆</p>
+          <p style={{ margin: 0, color: "#15803D", fontWeight: 600 }}>
+            ✅ 成功更新 {successItems.length} 筆
+          </p>
           {failedItems.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <p style={{ margin: "0 0 4px", color: "#B45309", fontWeight: 600 }}>⚠️ 以下 {failedItems.length} 筆無法更新：</p>
+              <p style={{ margin: "0 0 4px", color: "#B45309", fontWeight: 600 }}>
+                ⚠️ 以下 {failedItems.length} 筆無法更新：
+              </p>
               {failedItems.map((r, i) => (
-                <p key={i} style={{ margin: "2px 0", color: "#92400E", fontSize: 13 }}>
+                <p
+                  key={i}
+                  style={{ margin: "2px 0", color: "#92400E", fontSize: 13 }}
+                >
                   • {r.name} 第{r.session}次：{r.reason}
                 </p>
               ))}
@@ -567,30 +758,64 @@ function SubmitResult({ result }) {
           )}
         </>
       ) : (
-        <p style={{ margin: 0, color: "#DC2626", fontWeight: 600 }}>❌ 送出失敗：{result.error || "請稍後再試"}</p>
+        <p style={{ margin: 0, color: "#DC2626", fontWeight: 600 }}>
+          ❌ 送出失敗：{result.error || "請稍後再試"}
+        </p>
       )}
     </div>
   );
 }
 
-// ──────────────────────────────────────────────
-// LegendItem
-// ──────────────────────────────────────────────
-function LegendItem({ imgSrc, imgGray, pending, border, special, label }) {
+// ── LegendItem ─────────────────────────────────────────────────
+interface LegendItemProps {
+  imgSrc: string;
+  imgGray?: boolean;
+  pending?: boolean;
+  border?: boolean;
+  special?: boolean;
+  label: string;
+}
+
+function LegendItem({
+  imgSrc,
+  imgGray = false,
+  pending = false,
+  border = false,
+  special = false,
+  label,
+}: LegendItemProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#374151" }}>
-      <div style={{
-        width: 20, height: 20,
-        borderRadius: "50%",
-        outline: pending ? "2.5px solid #6D28D9" : border ? "2px solid #9CA3AF" : "none",
-        outlineOffset: "2px",
-      }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 11,
+        color: "#374151",
+      }}
+    >
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          outline: pending
+            ? "2.5px solid #6D28D9"
+            : border
+            ? "2px solid #9CA3AF"
+            : "none",
+          outlineOffset: "2px",
+        }}
+      >
         <img
           src={imgSrc}
           alt=""
           width={20}
           height={20}
-          style={{ display: "block", opacity: (imgGray || border) && !pending ? 0.45 : 1 }}
+          style={{
+            display: "block",
+            opacity: (imgGray || border) && !pending ? 0.45 : 1,
+          }}
         />
       </div>
       <span style={{ color: special ? "#6D28D9" : "#374151" }}>{label}</span>
@@ -598,10 +823,8 @@ function LegendItem({ imgSrc, imgGray, pending, border, special, label }) {
   );
 }
 
-// ──────────────────────────────────────────────
-// 樣式
-// ──────────────────────────────────────────────
-const S = {
+// ── Styles ─────────────────────────────────────────────────────
+const S: Record<string, CSSProperties> = {
   container: {
     minHeight: "100vh",
     backgroundColor: "#F1F5F9",
@@ -617,23 +840,54 @@ const S = {
     boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
     padding: "28px 24px",
   },
-  header: { marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #E2E8F0" },
-  title:  { margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "#1E3A5F", letterSpacing: 1 },
+  header: {
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottom: "2px solid #E2E8F0",
+  },
+  title: {
+    margin: "0 0 6px",
+    fontSize: 26,
+    fontWeight: 800,
+    color: "#1E3A5F",
+    letterSpacing: 1,
+  },
   subtitle: { margin: 0, fontSize: 14, color: "#64748B" },
-  section:  { marginBottom: 24 },
-  label: { display: "block", fontWeight: 700, fontSize: 14, color: "#374151", marginBottom: 8 },
+  section: { marginBottom: 24 },
+  label: {
+    display: "block",
+    fontWeight: 700,
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 8,
+  },
   select: {
-    width: "100%", padding: "10px 14px", fontSize: 15, borderRadius: 8,
-    border: "1.5px solid #CBD5E1", backgroundColor: "#F8FAFC", color: "#1E293B",
-    outline: "none", boxSizing: "border-box",
+    width: "100%",
+    padding: "10px 14px",
+    fontSize: 15,
+    borderRadius: 8,
+    border: "1.5px solid #CBD5E1",
+    backgroundColor: "#F8FAFC",
+    color: "#1E293B",
+    outline: "none",
+    boxSizing: "border-box",
   },
   textInput: {
-    width: "100%", padding: "10px 14px", fontSize: 15, borderRadius: 8,
-    border: "1.5px solid #CBD5E1", backgroundColor: "#F8FAFC", color: "#1E293B",
-    outline: "none", boxSizing: "border-box",
+    width: "100%",
+    padding: "10px 14px",
+    fontSize: 15,
+    borderRadius: 8,
+    border: "1.5px solid #CBD5E1",
+    backgroundColor: "#F8FAFC",
+    color: "#1E293B",
+    outline: "none",
+    boxSizing: "border-box",
   },
   dropdown: {
-    position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+    position: "absolute",
+    top: "calc(100% + 4px)",
+    left: 0,
+    right: 0,
     backgroundColor: "#FFF",
     border: "1.5px solid #CBD5E1",
     borderRadius: 8,
@@ -643,34 +897,59 @@ const S = {
     overflowY: "auto",
   },
   dropdownItem: {
-    padding: "10px 14px", fontSize: 14, cursor: "pointer",
+    padding: "10px 14px",
+    fontSize: 14,
+    cursor: "pointer",
     color: "#1E293B",
     borderBottom: "1px solid #F1F5F9",
     transition: "background 0.1s",
   },
   dropdownItemActive: {
-    backgroundColor: "#EFF6FF", color: "#1E3A5F",
+    backgroundColor: "#EFF6FF",
+    color: "#1E3A5F",
   },
-  legend: { display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" },
-  legendGroup: { display: "flex", flexDirection: "column", gap: 4 },
-  legendTitle: { fontSize: 11, fontWeight: 700, color: "#1E3A5F", marginBottom: 2, letterSpacing: 0.5 },
-
+  legend: {
+    display: "flex",
+    gap: 16,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+  legendGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  legendTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#1E3A5F",
+    marginBottom: 2,
+    letterSpacing: 0.5,
+  },
   tableHeader: {
-    display: "flex", alignItems: "center",
+    display: "flex",
+    alignItems: "center",
     padding: "6px 10px 0",
     backgroundColor: "#F8FAFC",
     borderRadius: "8px 8px 0 0",
   },
   tableSubHeader: {
-    display: "flex", alignItems: "center",
+    display: "flex",
+    alignItems: "center",
     padding: "4px 10px 6px",
     backgroundColor: "#F8FAFC",
     borderBottom: "2px solid #E2E8F0",
-    fontSize: 11, textAlign: "center",
+    fontSize: 11,
+    textAlign: "center",
   },
   sessionGroupLabel: {
-    flex: 3, textAlign: "center", fontSize: 11, fontWeight: 700,
-    color: "#94A3B8", letterSpacing: 1, paddingBottom: 2,
+    flex: 3,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#94A3B8",
+    letterSpacing: 1,
+    paddingBottom: 2,
     borderBottom: "1.5px solid #E2E8F0",
   },
   specialGroupLabel: {
@@ -681,25 +960,35 @@ const S = {
     padding: "2px 0",
   },
   tableBody: {
-    maxHeight: 460, overflowY: "auto",
-    border: "1px solid #E2E8F0", borderTop: "none",
-    borderRadius: "0 0 0 0",
+    maxHeight: 460,
+    overflowY: "auto",
+    border: "1px solid #E2E8F0",
+    borderTop: "none",
   },
   tableRow: {
-    display: "flex", alignItems: "center",
+    display: "flex",
+    alignItems: "center",
     padding: "6px 10px",
     borderBottom: "1px solid #F1F5F9",
   },
   nameCol: {
-    flex: "0 0 50px", fontWeight: 500, color: "#1E293B", fontSize: 13,
-    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+    flex: "0 0 50px" as CSSProperties["flex"],
+    fontWeight: 500,
+    color: "#1E293B",
+    fontSize: 13,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   sessionCol: {
-    flex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: "1px",
+    flex: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "1px",
   },
   specialCol: { backgroundColor: "#FAF5FF" },
   specialColHeader: { backgroundColor: "#F5F3FF" },
-
   progressBar: {
     padding: "12px 14px",
     background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)",
@@ -708,15 +997,24 @@ const S = {
     borderTop: "none",
   },
   progressInner: {
-    display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 6,
   },
   progressLabel: { fontSize: 12, fontWeight: 600, color: "#6D28D9" },
   progressPct: {
-    fontSize: 28, fontWeight: 800, color: "#4C1D95",
-    letterSpacing: -1, lineHeight: 1,
+    fontSize: 28,
+    fontWeight: 800,
+    color: "#4C1D95",
+    letterSpacing: -1,
+    lineHeight: 1,
   },
   progressTrack: {
-    height: 6, backgroundColor: "#DDD6FE", borderRadius: 99, overflow: "hidden",
+    height: 6,
+    backgroundColor: "#DDD6FE",
+    borderRadius: 99,
+    overflow: "hidden",
   },
   progressFill: {
     height: "100%",
@@ -725,24 +1023,43 @@ const S = {
     transition: "width 0.4s ease",
   },
   textarea: {
-    width: "100%", padding: "10px 14px", fontSize: 14, borderRadius: 8,
-    border: "1.5px solid #CBD5E1", backgroundColor: "#F8FAFC", color: "#1E293B",
-    resize: "vertical", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+    width: "100%",
+    padding: "10px 14px",
+    fontSize: 14,
+    borderRadius: 8,
+    border: "1.5px solid #CBD5E1",
+    backgroundColor: "#F8FAFC",
+    color: "#1E293B",
+    resize: "vertical",
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
   },
   submitBtn: {
-    width: "100%", padding: "14px", fontSize: 16, fontWeight: 800,
+    width: "100%",
+    padding: "14px",
+    fontSize: 16,
+    fontWeight: 800,
     color: "#1E293B",
-    border: "none", borderRadius: 10,
+    border: "none",
+    borderRadius: 10,
     letterSpacing: 0.5,
     transition: "all 0.25s ease",
   },
   loadingWrap: {
-    display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 16,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "48px 0",
+    gap: 16,
   },
   spinner: {
-    width: 40, height: 40,
-    border: "4px solid #E2E8F0", borderTop: "4px solid #1E3A5F",
-    borderRadius: "50%", animation: "spin 0.8s linear infinite",
+    width: 40,
+    height: 40,
+    border: "4px solid #E2E8F0",
+    borderTop: "4px solid #1E3A5F",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
   },
   loadingText: { margin: 0, color: "#64748B", fontSize: 15 },
 };
