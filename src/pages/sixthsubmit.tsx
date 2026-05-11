@@ -5,6 +5,7 @@ const SCRIPT_URL =
 
 const SESSION_LABELS = ["第一次", "第二次", "第三次", "第四次", "第五次", "第六次"];
 const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
+const BADGE_SIZE = 40;
 
 const GRAY_BADGE = (n: number) =>
   `/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
@@ -12,7 +13,6 @@ const COLOR_BADGE = (n: number) =>
   `/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
 
 const STATUS = { NOT_REGISTERED: "尚報名", CHECKED: "✓", CROSSED: "✗" } as const;
-
 const isSpecialSession = (s: number) => s >= 4;
 
 // ── Types ──────────────────────────────────────────────────────
@@ -76,6 +76,7 @@ export default function AttendanceApp() {
   const [allPeople, setAllPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const [selectedArea, setSelectedArea] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -150,27 +151,33 @@ export default function AttendanceApp() {
     [pendingChecks]
   );
 
+  // Gray (#9CA3AF → #64748B) to gold (#D4A017 → #B8860B) gradient transition
   const btnStyle = useMemo((): CSSProperties => {
     const hasWork = pendingCount > 0 || note.trim().length > 0;
     if (!hasWork) {
       return {
-        backgroundColor: "#D4A017",
-        opacity: 0.38,
+        background: "linear-gradient(135deg, #A8B0BC 0%, #6B7280 100%)",
+        opacity: 0.45,
         boxShadow: "none",
         transform: "scale(1)",
+        color: "#fff",
       };
     }
-    const t = Math.min(pendingCount / 10, 1);
-    const r = Math.round(212 + (255 - 212) * t);
-    const g = Math.round(160 + (200 - 160) * t);
-    const b = Math.round(23 + (0 - 23) * t);
-    const glow = 4 + pendingCount * 3;
-    const alpha = Math.min(0.25 + pendingCount * 0.06, 0.7);
+    const t = Math.min(pendingCount / 8, 1);
+    const r1 = Math.round(156 + (212 - 156) * t);
+    const g1 = Math.round(163 + (160 - 163) * t);
+    const b1 = Math.round(175 + (23 - 175) * t);
+    const r2 = Math.round(100 + (184 - 100) * t);
+    const g2 = Math.round(116 + (134 - 116) * t);
+    const b2 = Math.round(139 + (11 - 139) * t);
+    const shadowAlpha = 0.18 + t * 0.42;
+    const shadowSpread = Math.round(8 + t * 20);
     return {
-      backgroundColor: `rgb(${r},${g},${b})`,
+      background: `linear-gradient(135deg, rgb(${r1},${g1},${b1}) 0%, rgb(${r2},${g2},${b2}) 100%)`,
       opacity: 1,
-      boxShadow: `0 4px ${glow}px rgba(${r},${g},0,${alpha})`,
-      transform: pendingCount > 3 ? "scale(1.01)" : "scale(1)",
+      boxShadow: `0 ${shadowSpread / 2}px ${shadowSpread}px rgba(${r1},${Math.round(g1 * 0.65)},0,${shadowAlpha}), 0 2px 6px rgba(0,0,0,0.08)`,
+      transform: pendingCount > 4 ? "scale(1.01)" : "scale(1)",
+      color: t > 0.45 ? "#1A1000" : "#fff",
     };
   }, [pendingCount, note]);
 
@@ -266,21 +273,24 @@ export default function AttendanceApp() {
 
   if (loading)
     return (
-      <div style={S.container}>
-        <div style={S.card}>
-          <div style={S.loadingWrap}>
-            <div style={S.spinner} />
-            <p style={S.loadingText}>載入資料中，請稍候...</p>
+      <>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={S.container}>
+          <div style={S.card}>
+            <div style={S.loadingWrap}>
+              <div style={S.spinner} />
+              <p style={S.loadingText}>載入資料中，請稍候...</p>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
 
   if (fetchError)
     return (
       <div style={S.container}>
         <div style={S.card}>
-          <p style={{ color: "#DC2626", textAlign: "center" }}>
+          <p style={{ color: "#DC2626", textAlign: "center", fontSize: 17 }}>
             ⚠️ 資料載入失敗，請重新整理頁面
           </p>
         </div>
@@ -290,274 +300,243 @@ export default function AttendanceApp() {
   const showTable = people.length > 0;
 
   return (
-    <div style={S.container}>
-      <div style={S.card}>
-        <div style={S.header}>
-          <h1 style={S.title}>日日有光登記表</h1>
-          <p style={S.subtitle}>可依小組查詢，或直接搜尋個人姓名</p>
-        </div>
+    <>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={S.container}>
+        <div style={S.card}>
+          {/* Gold top accent */}
+          <div style={S.goldAccent} />
 
-        {/* ── 牧區 ── */}
-        <div style={S.section}>
-          <label style={S.label}>牧區</label>
-          <select
-            style={S.select}
-            value={selectedArea}
-            onChange={(e) => handleAreaChange(e.target.value)}
-          >
-            <option value="">請選擇牧區</option>
-            {areas.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Header */}
+          <div style={S.header}>
+            <h1 style={S.title}>日日有光登記表</h1>
+            <p style={S.subtitle}>可依小組查詢，或直接搜尋個人姓名</p>
+          </div>
 
-        {/* ── 小組 Autocomplete ── */}
-        <div style={S.section}>
-          <label style={S.label}>小組（輸入搜尋）</label>
-          <div ref={groupSearch.ref} style={{ position: "relative" }}>
-            <input
-              style={{ ...S.textInput, opacity: !selectedArea ? 0.45 : 1 }}
-              disabled={!selectedArea}
-              placeholder={selectedArea ? "輸入小組名稱搜尋..." : "請先選擇牧區"}
-              value={groupSearch.query}
-              onChange={(e) => {
-                groupSearch.setQuery(e.target.value);
-                groupSearch.setOpen(true);
-                groupSearch.setActive(-1);
-                if (!e.target.value) {
-                  setSelectedGroup("");
-                  resetAll();
-                }
-              }}
-              onFocus={() => groupSearch.setOpen(true)}
-              onKeyDown={(e) => {
-                const opts = groupOptions.filter((g) =>
-                  g.toLowerCase().includes(groupSearch.query.toLowerCase())
-                );
-                if (e.key === "ArrowDown") {
-                  groupSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
-                  e.preventDefault();
-                } else if (e.key === "ArrowUp") {
-                  groupSearch.setActive((a) => Math.max(a - 1, 0));
-                  e.preventDefault();
-                } else if (e.key === "Enter" && groupSearch.active >= 0) {
-                  handleGroupSelect(opts[groupSearch.active]);
-                } else if (e.key === "Escape") {
-                  groupSearch.setOpen(false);
-                }
-              }}
-            />
-            {groupSearch.open && selectedArea && (
-              <Dropdown
-                options={groupOptions.filter(
-                  (g) =>
-                    !groupSearch.query ||
+          {/* ── 牧區 ── */}
+          <div style={S.section}>
+            <label style={S.label}>牧區</label>
+            <select
+              style={S.select}
+              value={selectedArea}
+              onChange={(e) => handleAreaChange(e.target.value)}
+            >
+              <option value="">請選擇牧區</option>
+              {areas.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* ── 小組 Autocomplete ── */}
+          <div style={S.section}>
+            <label style={S.label}>小組（輸入搜尋）</label>
+            <div ref={groupSearch.ref} style={{ position: "relative" }}>
+              <input
+                style={{ ...S.textInput, opacity: !selectedArea ? 0.45 : 1 }}
+                disabled={!selectedArea}
+                placeholder={selectedArea ? "輸入小組名稱..." : "請先選擇牧區"}
+                value={groupSearch.query}
+                onChange={(e) => {
+                  groupSearch.setQuery(e.target.value);
+                  groupSearch.setOpen(true);
+                  groupSearch.setActive(-1);
+                  if (!e.target.value) { setSelectedGroup(""); resetAll(); }
+                }}
+                onFocus={() => groupSearch.setOpen(true)}
+                onKeyDown={(e) => {
+                  const opts = groupOptions.filter((g) =>
                     g.toLowerCase().includes(groupSearch.query.toLowerCase())
-                )}
-                active={groupSearch.active}
-                onSelect={handleGroupSelect}
-                onHover={(i) => groupSearch.setActive(i)}
+                  );
+                  if (e.key === "ArrowDown") { groupSearch.setActive((a) => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
+                  else if (e.key === "ArrowUp") { groupSearch.setActive((a) => Math.max(a - 1, 0)); e.preventDefault(); }
+                  else if (e.key === "Enter" && groupSearch.active >= 0) handleGroupSelect(opts[groupSearch.active]);
+                  else if (e.key === "Escape") groupSearch.setOpen(false);
+                }}
               />
-            )}
+              {groupSearch.open && selectedArea && (
+                <Dropdown
+                  options={groupOptions.filter(
+                    (g) =>
+                      !groupSearch.query ||
+                      g.toLowerCase().includes(groupSearch.query.toLowerCase())
+                  )}
+                  active={groupSearch.active}
+                  onSelect={handleGroupSelect}
+                  onHover={(i) => groupSearch.setActive(i)}
+                />
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* ── 個人搜尋 ── */}
-        <div style={S.section}>
-          <label style={S.label}>個人搜尋（直接輸入姓名）</label>
-          <div ref={nameSearch.ref} style={{ position: "relative" }}>
-            <input
-              style={S.textInput}
-              placeholder="輸入姓名搜尋..."
-              value={nameSearch.query}
-              onChange={(e) => {
-                nameSearch.setQuery(e.target.value);
-                nameSearch.setOpen(true);
-                nameSearch.setActive(-1);
-                if (!e.target.value) {
-                  setSelectedName("");
-                  resetAll();
-                }
-              }}
-              onFocus={() => nameSearch.setOpen(true)}
-              onKeyDown={(e) => {
-                const opts = allNames.filter((n) =>
-                  n.includes(nameSearch.query)
-                );
-                if (e.key === "ArrowDown") {
-                  nameSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
-                  e.preventDefault();
-                } else if (e.key === "ArrowUp") {
-                  nameSearch.setActive((a) => Math.max(a - 1, 0));
-                  e.preventDefault();
-                } else if (e.key === "Enter" && nameSearch.active >= 0) {
-                  handleNameSelect(opts[nameSearch.active]);
-                } else if (e.key === "Escape") {
-                  nameSearch.setOpen(false);
-                }
-              }}
-            />
-            {nameSearch.open && nameSearch.query && (
-              <Dropdown
-                options={allNames
-                  .filter((n) => n.includes(nameSearch.query))
-                  .slice(0, 12)}
-                active={nameSearch.active}
-                onSelect={handleNameSelect}
-                onHover={(i) => nameSearch.setActive(i)}
-              />
-            )}
+          {/* ── OR divider ── */}
+          <div style={S.orDivider}>
+            <span style={S.orLine} />
+            <span style={S.orText}>或直接搜尋姓名</span>
+            <span style={S.orLine} />
           </div>
-        </div>
 
-        {/* ── 出席表 ── */}
-        {showTable && (
+          {/* ── 個人搜尋 ── */}
           <div style={S.section}>
-            <label style={S.label}>
-              {mode === "name"
-                ? `「${selectedName}」出席狀況`
-                : `${selectedArea} — ${selectedGroup} 組員出席狀況`}
-            </label>
-
-            {/* 圖例 */}
-            <div style={S.legend}>
-              <div style={S.legendGroup}>
-                <span style={S.legendTitle}>1189</span>
-                <LegendItem imgGray imgSrc={GRAY_BADGE(1)} label="尚報名（不可補登）" />
-                <LegendItem imgSrc={GRAY_BADGE(1)} border label="未完成（可補登）" />
-                <LegendItem imgSrc={COLOR_BADGE(1)} label="已完成" />
-                <LegendItem imgSrc={COLOR_BADGE(1)} pending label="待送出" />
-              </div>
-              <div
-                style={{
-                  ...S.legendGroup,
-                  borderLeft: "2px solid #DDD6FE",
-                  paddingLeft: 12,
+            <label style={S.label}>個人搜尋</label>
+            <div ref={nameSearch.ref} style={{ position: "relative" }}>
+              <input
+                style={S.textInput}
+                placeholder="輸入姓名..."
+                value={nameSearch.query}
+                onChange={(e) => {
+                  nameSearch.setQuery(e.target.value);
+                  nameSearch.setOpen(true);
+                  nameSearch.setActive(-1);
+                  if (!e.target.value) { setSelectedName(""); resetAll(); }
                 }}
-              >
-                <span style={{ ...S.legendTitle, color: "#7C3AED" }}>
-                  日日有光
-                </span>
-                <LegendItem
-                  imgSrc={GRAY_BADGE(4)}
-                  border
-                  label="尚報名（可補登）"
-                  special
-                />
-                <LegendItem
-                  imgSrc={GRAY_BADGE(4)}
-                  border
-                  label="未完成（可補登）"
-                  special
-                />
-                <LegendItem imgSrc={COLOR_BADGE(4)} label="已完成" special />
-              </div>
-            </div>
-
-            {/* 欄位標題 */}
-            <div style={S.tableHeader}>
-              <div
-                style={{
-                  ...S.nameCol,
-                  fontWeight: 600,
-                  fontSize: 12,
-                  color: "#475569",
+                onFocus={() => nameSearch.setOpen(true)}
+                onKeyDown={(e) => {
+                  const opts = allNames.filter((n) => n.includes(nameSearch.query));
+                  if (e.key === "ArrowDown") { nameSearch.setActive((a) => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
+                  else if (e.key === "ArrowUp") { nameSearch.setActive((a) => Math.max(a - 1, 0)); e.preventDefault(); }
+                  else if (e.key === "Enter" && nameSearch.active >= 0) handleNameSelect(opts[nameSearch.active]);
+                  else if (e.key === "Escape") nameSearch.setOpen(false);
                 }}
-              >
-                姓名
-              </div>
-              <div style={S.sessionGroupLabel}>1189</div>
-              <div style={{ ...S.sessionGroupLabel, ...S.specialGroupLabel }}>
-                日日有光
-              </div>
+              />
+              {nameSearch.open && nameSearch.query && (
+                <Dropdown
+                  options={allNames.filter((n) => n.includes(nameSearch.query)).slice(0, 12)}
+                  active={nameSearch.active}
+                  onSelect={handleNameSelect}
+                  onHover={(i) => nameSearch.setActive(i)}
+                />
+              )}
             </div>
-            <div style={S.tableSubHeader}>
-              <div style={S.nameCol} />
-              {[1, 2, 3, 4, 5, 6].map((s) => (
-                <div
-                  key={s}
-                  style={{
-                    ...S.sessionCol,
-                    ...(isSpecialSession(s) ? S.specialColHeader : {}),
-                    fontWeight: 600,
-                    fontSize: 11,
-                    color: isSpecialSession(s) ? "#7C3AED" : "#475569",
-                  }}
+          </div>
+
+          {/* ── 出席表 ── */}
+          {showTable && (
+            <div style={S.section}>
+              {/* Section heading + legend toggle */}
+              <div style={S.tableHeadingRow}>
+                <label style={{ ...S.label, marginBottom: 0 }}>
+                  {mode === "name"
+                    ? `「${selectedName}」出席狀況`
+                    : `${selectedArea} — ${selectedGroup}`}
+                </label>
+                <button
+                  style={S.legendToggle}
+                  onClick={() => setLegendOpen((v) => !v)}
                 >
-                  {SESSION_LABELS[s - 1]}
+                  {legendOpen ? "收起圖例 ▲" : "查看圖例 ▼"}
+                </button>
+              </div>
+
+              {/* 圖例 (collapsible) */}
+              {legendOpen && (
+                <div style={S.legendBox}>
+                  <div style={S.legendCol}>
+                    <span style={S.legendTitle}>1189</span>
+                    <LegendItem imgGray imgSrc={GRAY_BADGE(1)} label="尚報名（不可補登）" />
+                    <LegendItem imgSrc={GRAY_BADGE(1)} border label="未完成（可補登）" />
+                    <LegendItem imgSrc={COLOR_BADGE(1)} label="已完成" />
+                    <LegendItem imgSrc={COLOR_BADGE(1)} pending label="待送出" />
+                  </div>
+                  <div style={{ width: 1, background: "#DDD6FE", alignSelf: "stretch" }} />
+                  <div style={S.legendCol}>
+                    <span style={{ ...S.legendTitle, color: "#7C3AED" }}>日日有光</span>
+                    <LegendItem imgSrc={GRAY_BADGE(4)} border label="尚報名（可補登）" special />
+                    <LegendItem imgSrc={GRAY_BADGE(4)} border label="未完成（可補登）" special />
+                    <LegendItem imgSrc={COLOR_BADGE(4)} label="已完成" special />
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
 
-            <div style={S.tableBody}>
-              {people.map((person) => (
-                <PersonRow
-                  key={`${person.area}_${person.name}`}
-                  person={person}
-                  pendingChecks={pendingChecks}
-                  onToggle={toggleCheck}
-                  showArea={mode === "name"}
-                />
-              ))}
-            </div>
-
-            {/* 完成率 */}
-            <div style={S.progressBar}>
-              <div style={S.progressInner}>
-                <span style={S.progressLabel}>日日有光完成率</span>
-                <span style={S.progressPct}>{specialProgress}%</span>
+              {/* 欄位標題 */}
+              <div style={S.tableHeader}>
+                <div style={S.nameCol} />
+                <div style={S.sessionGroupLabel}>1189</div>
+                <div style={{ ...S.sessionGroupLabel, ...S.specialGroupLabel }}>日日有光</div>
               </div>
-              <div style={S.progressTrack}>
-                <div
-                  style={{ ...S.progressFill, width: `${specialProgress}%` }}
-                />
+              <div style={S.tableSubHeader}>
+                <div style={S.nameCol} />
+                {[1, 2, 3, 4, 5, 6].map((s) => (
+                  <div
+                    key={s}
+                    style={{
+                      ...S.sessionCol,
+                      ...(isSpecialSession(s) ? S.specialColHeader : {}),
+                      fontWeight: 600,
+                      fontSize: 10,
+                      color: isSpecialSession(s) ? "#7C3AED" : "#475569",
+                    }}
+                  >
+                    {SESSION_LABELS[s - 1]}
+                  </div>
+                ))}
+              </div>
+
+              <div style={S.tableBody}>
+                {people.map((person) => (
+                  <PersonRow
+                    key={`${person.area}_${person.name}`}
+                    person={person}
+                    pendingChecks={pendingChecks}
+                    onToggle={toggleCheck}
+                    showArea={mode === "name"}
+                  />
+                ))}
+              </div>
+
+              {/* 完成率 */}
+              <div style={S.progressBar}>
+                <div style={S.progressInner}>
+                  <span style={S.progressLabel}>日日有光完成率</span>
+                  <span style={S.progressPct}>{specialProgress}%</span>
+                </div>
+                <div style={S.progressTrack}>
+                  <div style={{ ...S.progressFill, width: `${specialProgress}%` }} />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── 備註 ── */}
-        {showTable && (
-          <div style={S.section}>
-            <label style={S.label}>備註</label>
-            <textarea
-              style={S.textarea}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="請填入備註"
-              rows={3}
-            />
-          </div>
-        )}
+          {/* ── 備註 ── */}
+          {showTable && (
+            <div style={S.section}>
+              <label style={S.label}>備註（選填）</label>
+              <textarea
+                style={S.textarea}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="請填入備註"
+                rows={3}
+              />
+            </div>
+          )}
 
-        {submitResult && <SubmitResultBox result={submitResult} />}
+          {submitResult && <SubmitResultBox result={submitResult} />}
 
-        {/* ── 送出按鈕 ── */}
-        {showTable && (
-          <button
-            style={{
-              ...S.submitBtn,
-              ...btnStyle,
-              cursor:
-                (pendingCount === 0 && !note.trim()) || submitting
-                  ? "not-allowed"
-                  : "pointer",
-            }}
-            onClick={handleSubmit}
-            disabled={(pendingCount === 0 && !note.trim()) || submitting}
-          >
-            {submitting
-              ? "送出中..."
-              : pendingCount > 0
-              ? `送出登記（${pendingCount} 筆）`
-              : "送出登記"}
-          </button>
-        )}
+          {/* ── 送出按鈕 ── */}
+          {showTable && (
+            <button
+              style={{
+                ...S.submitBtn,
+                ...btnStyle,
+                cursor:
+                  (pendingCount === 0 && !note.trim()) || submitting
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+              onClick={handleSubmit}
+              disabled={(pendingCount === 0 && !note.trim()) || submitting}
+            >
+              {submitting
+                ? "送出中..."
+                : pendingCount > 0
+                ? `送出登記（${pendingCount} 筆）`
+                : "送出登記"}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -603,8 +582,8 @@ function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonRowProps
     <div style={S.tableRow}>
       <div style={S.nameCol}>
         {showArea && (
-          <span style={{ fontSize: 10, color: "#94A3B8", marginRight: 4 }}>
-            [{person.area}]
+          <span style={{ fontSize: 9, color: "#94A3B8", display: "block", lineHeight: 1.2 }}>
+            {person.area}
           </span>
         )}
         {person.name}
@@ -640,46 +619,26 @@ interface SessionCellProps {
 }
 
 function SessionCell({ session, status, isPending, onClick }: SessionCellProps) {
-  const SIZE = 32;
   const special = isSpecialSession(session);
 
   if (status === STATUS.CHECKED) {
     return (
-      <div
-        title="已完成"
-        style={{ width: SIZE, height: SIZE, cursor: "not-allowed" }}
-      >
-        <img
-          src={COLOR_BADGE(session)}
-          alt=""
-          width={SIZE}
-          height={SIZE}
-          style={{ display: "block" }}
-        />
+      <div title="已完成" style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed" }}>
+        <img src={COLOR_BADGE(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
       </div>
     );
   }
 
   if (!special && status === STATUS.NOT_REGISTERED) {
     return (
-      <div
-        title="尚未報名，不可補登"
-        style={{ width: SIZE, height: SIZE, cursor: "not-allowed", opacity: 0.35 }}
-      >
-        <img
-          src={GRAY_BADGE(session)}
-          alt=""
-          width={SIZE}
-          height={SIZE}
-          style={{ display: "block" }}
-        />
+      <div title="尚未報名，不可補登" style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed", opacity: 0.3 }}>
+        <img src={GRAY_BADGE(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
       </div>
     );
   }
 
   const canToggle =
-    status === STATUS.CROSSED ||
-    (special && status === STATUS.NOT_REGISTERED);
+    status === STATUS.CROSSED || (special && status === STATUS.NOT_REGISTERED);
 
   if (canToggle) {
     return (
@@ -687,8 +646,8 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         onClick={onClick}
         title={isPending ? "點擊取消" : "點擊補登記為完成"}
         style={{
-          width: SIZE,
-          height: SIZE,
+          width: BADGE_SIZE,
+          height: BADGE_SIZE,
           cursor: "pointer",
           borderRadius: "50%",
           outline: isPending ? "2.5px solid #6D28D9" : "2px solid transparent",
@@ -699,8 +658,8 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         <img
           src={isPending ? COLOR_BADGE(session) : GRAY_BADGE(session)}
           alt=""
-          width={SIZE}
-          height={SIZE}
+          width={BADGE_SIZE}
+          height={BADGE_SIZE}
           style={{
             display: "block",
             opacity: isPending ? 1 : special ? 0.65 : 0.55,
@@ -711,14 +670,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
   }
 
   return (
-    <div
-      style={{
-        width: SIZE,
-        height: SIZE,
-        borderRadius: 4,
-        background: "#E5E7EB",
-      }}
-    />
+    <div style={{ width: BADGE_SIZE, height: BADGE_SIZE, borderRadius: 4, background: "#E5E7EB" }} />
   );
 }
 
@@ -730,27 +682,24 @@ function SubmitResultBox({ result }: { result: SubmitResultData }) {
     <div
       style={{
         margin: "16px 0",
-        padding: "12px 16px",
-        borderRadius: 8,
+        padding: "14px 16px",
+        borderRadius: 10,
         backgroundColor: result.success ? "#F0FDF4" : "#FEF2F2",
-        border: `1px solid ${result.success ? "#BBF7D0" : "#FECACA"}`,
+        border: `1.5px solid ${result.success ? "#BBF7D0" : "#FECACA"}`,
       }}
     >
       {result.success ? (
         <>
-          <p style={{ margin: 0, color: "#15803D", fontWeight: 600 }}>
+          <p style={{ margin: 0, color: "#15803D", fontWeight: 700, fontSize: 16 }}>
             ✅ 成功更新 {successItems.length} 筆
           </p>
           {failedItems.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <p style={{ margin: "0 0 4px", color: "#B45309", fontWeight: 600 }}>
+            <div style={{ marginTop: 10 }}>
+              <p style={{ margin: "0 0 4px", color: "#B45309", fontWeight: 600, fontSize: 14 }}>
                 ⚠️ 以下 {failedItems.length} 筆無法更新：
               </p>
               {failedItems.map((r, i) => (
-                <p
-                  key={i}
-                  style={{ margin: "2px 0", color: "#92400E", fontSize: 13 }}
-                >
+                <p key={i} style={{ margin: "2px 0", color: "#92400E", fontSize: 13 }}>
                   • {r.name} 第{r.session}次：{r.reason}
                 </p>
               ))}
@@ -758,7 +707,7 @@ function SubmitResultBox({ result }: { result: SubmitResultData }) {
           )}
         </>
       ) : (
-        <p style={{ margin: 0, color: "#DC2626", fontWeight: 600 }}>
+        <p style={{ margin: 0, color: "#DC2626", fontWeight: 700, fontSize: 16 }}>
           ❌ 送出失敗：{result.error || "請稍後再試"}
         </p>
       )}
@@ -785,19 +734,11 @@ function LegendItem({
   label,
 }: LegendItemProps) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 11,
-        color: "#374151",
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#374151" }}>
       <div
         style={{
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           borderRadius: "50%",
           outline: pending
             ? "2.5px solid #6D28D9"
@@ -805,17 +746,15 @@ function LegendItem({
             ? "2px solid #9CA3AF"
             : "none",
           outlineOffset: "2px",
+          flexShrink: 0,
         }}
       >
         <img
           src={imgSrc}
           alt=""
-          width={20}
-          height={20}
-          style={{
-            display: "block",
-            opacity: (imgGray || border) && !pending ? 0.45 : 1,
-          }}
+          width={24}
+          height={24}
+          style={{ display: "block", opacity: (imgGray || border) && !pending ? 0.45 : 1 }}
         />
       </div>
       <span style={{ color: special ? "#6D28D9" : "#374151" }}>{label}</span>
@@ -827,27 +766,33 @@ function LegendItem({
 const S: Record<string, CSSProperties> = {
   container: {
     minHeight: "100vh",
-    backgroundColor: "#F1F5F9",
-    padding: "24px 16px",
+    backgroundColor: "#F5F3EE",
+    padding: "20px 12px 48px",
     fontFamily: "'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
     boxSizing: "border-box",
   },
   card: {
-    maxWidth: 820,
+    maxWidth: 600,
     margin: "0 auto",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-    padding: "28px 24px",
+    borderRadius: 20,
+    boxShadow: "0 6px 32px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05)",
+    padding: "0 20px 28px",
+    overflow: "hidden",
+  },
+  goldAccent: {
+    height: 5,
+    background: "linear-gradient(90deg, #C8860A 0%, #F59E0B 50%, #C8860A 100%)",
+    margin: "0 -20px 24px",
   },
   header: {
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottom: "2px solid #E2E8F0",
+    marginBottom: 28,
+    paddingBottom: 18,
+    borderBottom: "1.5px solid #E2E8F0",
   },
   title: {
     margin: "0 0 6px",
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: 800,
     color: "#1E3A5F",
     letterSpacing: 1,
@@ -857,15 +802,15 @@ const S: Record<string, CSSProperties> = {
   label: {
     display: "block",
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: 15,
     color: "#374151",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   select: {
     width: "100%",
-    padding: "10px 14px",
-    fontSize: 15,
-    borderRadius: 8,
+    padding: "14px 16px",
+    fontSize: 16,
+    borderRadius: 10,
     border: "1.5px solid #CBD5E1",
     backgroundColor: "#F8FAFC",
     color: "#1E293B",
@@ -874,14 +819,32 @@ const S: Record<string, CSSProperties> = {
   },
   textInput: {
     width: "100%",
-    padding: "10px 14px",
-    fontSize: 15,
-    borderRadius: 8,
+    padding: "14px 16px",
+    fontSize: 16,
+    borderRadius: 10,
     border: "1.5px solid #CBD5E1",
     backgroundColor: "#F8FAFC",
     color: "#1E293B",
     outline: "none",
     boxSizing: "border-box",
+  },
+  orDivider: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 24,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+    display: "block",
+  },
+  orText: {
+    fontSize: 13,
+    color: "#94A3B8",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
   },
   dropdown: {
     position: "absolute",
@@ -890,15 +853,15 @@ const S: Record<string, CSSProperties> = {
     right: 0,
     backgroundColor: "#FFF",
     border: "1.5px solid #CBD5E1",
-    borderRadius: 8,
-    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+    borderRadius: 10,
+    boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
     zIndex: 50,
-    maxHeight: 260,
+    maxHeight: 280,
     overflowY: "auto",
   },
   dropdownItem: {
-    padding: "10px 14px",
-    fontSize: 14,
+    padding: "14px 16px",
+    fontSize: 15,
     cursor: "pointer",
     color: "#1E293B",
     borderBottom: "1px solid #F1F5F9",
@@ -908,16 +871,39 @@ const S: Record<string, CSSProperties> = {
     backgroundColor: "#EFF6FF",
     color: "#1E3A5F",
   },
-  legend: {
+  tableHeadingRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  legendToggle: {
+    padding: "6px 12px",
+    fontSize: 12,
+    color: "#6D28D9",
+    background: "#F5F3FF",
+    border: "1px solid #DDD6FE",
+    borderRadius: 99,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
+  legendBox: {
     display: "flex",
     gap: 16,
+    padding: "12px 14px",
+    backgroundColor: "#FAFAFA",
+    border: "1px solid #E2E8F0",
+    borderRadius: 10,
     marginBottom: 12,
-    flexWrap: "wrap",
   },
-  legendGroup: {
+  legendCol: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
-    gap: 4,
+    gap: 6,
   },
   legendTitle: {
     fontSize: 11,
@@ -929,17 +915,16 @@ const S: Record<string, CSSProperties> = {
   tableHeader: {
     display: "flex",
     alignItems: "center",
-    padding: "6px 10px 0",
+    padding: "6px 8px 0",
     backgroundColor: "#F8FAFC",
-    borderRadius: "8px 8px 0 0",
+    borderRadius: "10px 10px 0 0",
   },
   tableSubHeader: {
     display: "flex",
     alignItems: "center",
-    padding: "4px 10px 6px",
+    padding: "4px 8px 6px",
     backgroundColor: "#F8FAFC",
     borderBottom: "2px solid #E2E8F0",
-    fontSize: 11,
     textAlign: "center",
   },
   sessionGroupLabel: {
@@ -960,7 +945,7 @@ const S: Record<string, CSSProperties> = {
     padding: "2px 0",
   },
   tableBody: {
-    maxHeight: 460,
+    maxHeight: 480,
     overflowY: "auto",
     border: "1px solid #E2E8F0",
     borderTop: "none",
@@ -968,14 +953,14 @@ const S: Record<string, CSSProperties> = {
   tableRow: {
     display: "flex",
     alignItems: "center",
-    padding: "6px 10px",
+    padding: "8px 8px",
     borderBottom: "1px solid #F1F5F9",
   },
   nameCol: {
-    flex: "0 0 50px" as CSSProperties["flex"],
-    fontWeight: 500,
+    flex: "0 0 65px" as CSSProperties["flex"],
+    fontWeight: 600,
     color: "#1E293B",
-    fontSize: 13,
+    fontSize: 14,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -985,14 +970,14 @@ const S: Record<string, CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    padding: "1px",
+    padding: "2px 0",
   },
   specialCol: { backgroundColor: "#FAF5FF" },
   specialColHeader: { backgroundColor: "#F5F3FF" },
   progressBar: {
-    padding: "12px 14px",
+    padding: "14px 16px",
     background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)",
-    borderRadius: "0 0 8px 8px",
+    borderRadius: "0 0 10px 10px",
     border: "1px solid #DDD6FE",
     borderTop: "none",
   },
@@ -1000,18 +985,18 @@ const S: Record<string, CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "baseline",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  progressLabel: { fontSize: 12, fontWeight: 600, color: "#6D28D9" },
+  progressLabel: { fontSize: 13, fontWeight: 700, color: "#6D28D9" },
   progressPct: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: 800,
     color: "#4C1D95",
     letterSpacing: -1,
     lineHeight: 1,
   },
   progressTrack: {
-    height: 6,
+    height: 8,
     backgroundColor: "#DDD6FE",
     borderRadius: 99,
     overflow: "hidden",
@@ -1024,9 +1009,9 @@ const S: Record<string, CSSProperties> = {
   },
   textarea: {
     width: "100%",
-    padding: "10px 14px",
-    fontSize: 14,
-    borderRadius: 8,
+    padding: "14px 16px",
+    fontSize: 15,
+    borderRadius: 10,
     border: "1.5px solid #CBD5E1",
     backgroundColor: "#F8FAFC",
     color: "#1E293B",
@@ -1034,32 +1019,33 @@ const S: Record<string, CSSProperties> = {
     outline: "none",
     boxSizing: "border-box",
     fontFamily: "inherit",
+    lineHeight: 1.6,
   },
   submitBtn: {
     width: "100%",
-    padding: "14px",
-    fontSize: 16,
+    padding: "18px 24px",
+    fontSize: 18,
     fontWeight: 800,
-    color: "#1E293B",
     border: "none",
-    borderRadius: 10,
-    letterSpacing: 0.5,
-    transition: "all 0.25s ease",
+    borderRadius: 12,
+    letterSpacing: 1,
+    transition: "all 0.3s ease",
+    marginTop: 4,
   },
   loadingWrap: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    padding: "48px 0",
-    gap: 16,
+    padding: "56px 0",
+    gap: 18,
   },
   spinner: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     border: "4px solid #E2E8F0",
-    borderTop: "4px solid #1E3A5F",
+    borderTop: "4px solid #D4A017",
     borderRadius: "50%",
     animation: "spin 0.8s linear infinite",
   },
-  loadingText: { margin: 0, color: "#64748B", fontSize: 15 },
+  loadingText: { margin: 0, color: "#64748B", fontSize: 16 },
 };
