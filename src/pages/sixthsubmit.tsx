@@ -1,5 +1,119 @@
 import { useEffect, useState, useMemo, useRef, CSSProperties } from "react";
 
+function DinoLoader() {
+  const [frame, setFrame] = useState<0 | 1>(0);
+  const [jumping, setJumping] = useState(false);
+
+  useEffect(() => {
+    const t = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 150);
+    return () => clearInterval(t);
+  }, []);
+
+  function handleJump() {
+    if (jumping) return;
+    setJumping(true);
+    setTimeout(() => setJumping(false), 500);
+  }
+
+  return (
+    <div
+      onClick={handleJump}
+      onTouchStart={handleJump}
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#fff",
+        zIndex: 50,
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <style>{`
+        @keyframes cactus-run {
+          0%   { transform: translateX(460px); }
+          100% { transform: translateX(-60px); }
+        }
+        .dino-cactus-1 { animation: cactus-run 2.4s linear infinite; }
+        .dino-cactus-2 { animation: cactus-run 2.4s linear infinite 1.2s; }
+        @keyframes dino-bounce {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(-4px); }
+        }
+        @keyframes dino-jump {
+          0%   { transform: translateY(0); }
+          35%  { transform: translateY(-70px); }
+          65%  { transform: translateY(-70px); }
+          100% { transform: translateY(0); }
+        }
+        .dino-body   { animation: dino-bounce 0.3s ease-in-out infinite; }
+        .dino-jumping { animation: dino-jump 0.5s ease-in-out forwards; }
+      `}</style>
+
+      <p style={{ fontSize: 18, fontWeight: 600, color: "#374151", marginBottom: 40 }}>
+        恐龍正在拿1189資料中，請稍候...
+      </p>
+
+      <div style={{ position: "relative", width: 384, height: 112, overflow: "visible" }}>
+        {/* Ground */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "#9ca3af" }} />
+
+        {/* Dino */}
+        <div className={jumping ? "dino-jumping" : "dino-body"} style={{ position: "absolute", bottom: 0, left: 32 }}>
+          <svg width="72" height="80" viewBox="0 0 72 80" fill="#535353">
+            <rect x="0" y="28" width="16" height="8" />
+            <rect x="4" y="22" width="12" height="8" />
+            <rect x="16" y="24" width="36" height="28" />
+            <rect x="36" y="14" width="16" height="14" />
+            <rect x="40" y="4" width="28" height="20" />
+            <rect x="60" y="8" width="5" height="5" fill="white" />
+            <rect x="56" y="22" width="12" height="6" />
+            <rect x="44" y="38" width="10" height="6" />
+            {frame === 0 ? (
+              <>
+                <rect x="36" y="52" width="10" height="20" />
+                <rect x="36" y="72" width="14" height="8" />
+                <rect x="22" y="52" width="10" height="12" />
+                <rect x="16" y="62" width="12" height="8" />
+              </>
+            ) : (
+              <>
+                <rect x="36" y="52" width="10" height="12" />
+                <rect x="38" y="62" width="12" height="8" />
+                <rect x="22" y="52" width="10" height="20" />
+                <rect x="22" y="72" width="14" height="8" />
+              </>
+            )}
+          </svg>
+        </div>
+
+        {/* Cacti */}
+        <div className="dino-cactus-1" style={{ position: "absolute", bottom: 0, left: 0 }}>
+          <svg width="28" height="56" viewBox="0 0 28 56" fill="#535353">
+            <rect x="10" y="0" width="8" height="56" />
+            <rect x="2" y="14" width="10" height="6" />
+            <rect x="2" y="8" width="6" height="12" />
+            <rect x="18" y="20" width="10" height="6" />
+            <rect x="22" y="14" width="6" height="12" />
+          </svg>
+        </div>
+        <div className="dino-cactus-2" style={{ position: "absolute", bottom: 0, left: 0 }}>
+          <svg width="28" height="56" viewBox="0 0 28 56" fill="#535353">
+            <rect x="10" y="0" width="8" height="56" />
+            <rect x="2" y="14" width="10" height="6" />
+            <rect x="2" y="8" width="6" height="12" />
+            <rect x="18" y="20" width="10" height="6" />
+            <rect x="22" y="14" width="6" height="12" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzkyg10DQolseMzmerKqvPjRZutThSKNipeBjVuCjmXRStEIupRNQXcBA17VghQhlS0fQ/exec";
 
@@ -271,20 +385,7 @@ export default function AttendanceApp() {
     }
   };
 
-  if (loading)
-    return (
-      <>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={S.container}>
-          <div style={S.card}>
-            <div style={S.loadingWrap}>
-              <div style={S.spinner} />
-              <p style={S.loadingText}>載入資料中，請稍候...</p>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+  if (loading) return <DinoLoader />;
 
   if (fetchError)
     return (
