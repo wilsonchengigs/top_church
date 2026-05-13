@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef, CSSProperties, useCallback } from "react";
 
 // ── DinoLoader (mini-game) ─────────────────────────────────────
-const GAME_W = 480;
 const GAME_H = 120;
 const DINO_X = 40;
 const DINO_W = 34;
