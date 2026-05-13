@@ -126,6 +126,13 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
     return () => window.removeEventListener("keydown", handler);
   }, [jump]);
 
+  // 資料載完但還沒開始玩 → 直接進入
+  useEffect(() => {
+    if (onLoaded && !startedRef.current) {
+      onEnter?.();
+    }
+  }, [onLoaded, onEnter]);
+
   useEffect(() => {
     let tick = 0;
     // 每 10 秒自動存一次（約 600 ticks @ 60fps）
@@ -198,7 +205,11 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const handler = (e: TouchEvent) => { e.preventDefault(); jump(); };
+    const handler = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest("button, input, [data-no-jump]")) return;
+      e.preventDefault();
+      jump();
+    };
     el.addEventListener("touchstart", handler, { passive: false });
     return () => el.removeEventListener("touchstart", handler);
   }, [jump]);
@@ -206,7 +217,7 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
   return (
     <div
       ref={containerRef}
-      onClick={jump}
+      onClick={(e) => { if ((e.target as HTMLElement).closest("button, input, [data-no-jump]")) return; jump(); }}
       style={{
         position: "fixed",
         inset: 0,
@@ -287,19 +298,21 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
         {dead
           ? "撞到了！點擊螢幕重新開始"
           : !started
-          ? onLoaded ? "資料已載入完成，點擊開始玩！" : "點擊螢幕開始・載入資料中..."
+          ? "點擊螢幕開始・載入資料中..."
           : onLoaded ? "資料已載入完成" : "載入資料中..."}
       </div>
 
-      {/* Enter button (only when loaded) */}
+      {/* Enter button — fixed at bottom, doesn't affect layout */}
       {onLoaded && (
         <button
           onClick={(e) => { e.stopPropagation(); saveScore(Math.floor(scoreRef.current / 6)); onEnter?.(); }}
           style={{
-            marginTop: 14, padding: "11px 32px", fontSize: 16, fontWeight: 800,
+            position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+            padding: "14px 40px", fontSize: 16, fontWeight: 800,
             background: "linear-gradient(135deg, #C8860A 0%, #F59E0B 100%)",
-            color: "#fff", border: "none", borderRadius: 12, cursor: "pointer",
-            boxShadow: "0 4px 16px rgba(200,134,10,0.35)", letterSpacing: 1,
+            color: "#fff", border: "none", borderRadius: 14, cursor: "pointer",
+            boxShadow: "0 4px 20px rgba(200,134,10,0.45)", letterSpacing: 1,
+            whiteSpace: "nowrap", zIndex: 60,
           }}
         >
           進入登記表 →
