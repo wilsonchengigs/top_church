@@ -16,18 +16,24 @@ interface Obstacle { x: number; w: number; h: number; type: "cactus" | "tall"; }
 interface Cloud { x: number; y: number; w: number; }
 interface LeaderEntry { rank: number; name: string; score: number; }
 
-function useGameWidth() {
-  const [w, setW] = useState(() => Math.min(window.innerWidth - 24, 480));
+function useGameSize() {
+  const [size, setSize] = useState(() => ({
+    w: Math.min(window.innerWidth - 16, 520),
+    h: Math.min(Math.floor(window.innerHeight * 0.45), 280),
+  }));
   useEffect(() => {
-    const update = () => setW(Math.min(window.innerWidth - 24, 480));
+    const update = () => setSize({
+      w: Math.min(window.innerWidth - 16, 520),
+      h: Math.min(Math.floor(window.innerHeight * 0.45), 280),
+    });
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
-  return w;
+  return size;
 }
 
 function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () => void }) {
-  const gameW = useGameWidth();
+  const { w: gameW, h: gameH } = useGameSize();
   const [dinoY, setDinoY] = useState(0);
   const [frame, setFrame] = useState<0 | 1>(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -197,93 +203,91 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
     return () => { cancelAnimationFrame(rafRef.current); clearInterval(autoSaveInterval); };
   }, [best, saveScore]);
 
-  const groundY = 18;
+  const groundY = 20;
   const dinoBottom = groundY + dinoY;
   const hasLeaderboardUrl = LEADERBOARD_URL && !LEADERBOARD_URL.startsWith("YOUR_");
 
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = containerRef.current;
+    const el = gameAreaRef.current;
     if (!el) return;
-    const handler = (e: TouchEvent) => {
-      if ((e.target as HTMLElement).closest("button, input, [data-no-jump]")) return;
-      e.preventDefault();
-      jump();
-    };
+    const handler = (e: TouchEvent) => { e.preventDefault(); jump(); };
     el.addEventListener("touchstart", handler, { passive: false });
     return () => el.removeEventListener("touchstart", handler);
   }, [jump]);
 
   return (
-    <div
-      ref={containerRef}
-      onClick={(e) => { if ((e.target as HTMLElement).closest("button, input, [data-no-jump]")) return; jump(); }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        background: flash ? "#fff0f0" : "#fff",
-        transition: "background 0.15s",
-        zIndex: 50,
-        cursor: "pointer",
-        userSelect: "none",
-      }}
-    >
-      {/* Top bar: name + score + leaderboard btn */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, width: gameW, padding: "0 4px", boxSizing: "border-box" }}>
-        {/* Player name */}
-        <div
+    <div style={{
+      position: "fixed", inset: 0, display: "flex", flexDirection: "column",
+      background: flash ? "#fff0f0" : "#fff", transition: "background 0.15s",
+      zIndex: 50, userSelect: "none",
+    }}>
+
+      {/* ── 頂部列：名字 + 分數 + 排行榜 ── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "12px 16px 10px", borderBottom: "1px solid #F1F5F9",
+        background: "#fff", flexShrink: 0,
+      }}>
+        <button
           onClick={(e) => { e.stopPropagation(); setShowNameInput(true); }}
           style={{
-            fontSize: 13, fontWeight: 700, color: playerName ? "#374151" : "#9CA3AF",
-            background: "#F3F4F6", borderRadius: 8, padding: "4px 10px", cursor: "pointer",
-            border: "1px solid #E5E7EB", whiteSpace: "nowrap",
+            fontSize: 13, fontWeight: 700, color: "#374151",
+            background: "#F3F4F6", borderRadius: 8, padding: "6px 12px",
+            border: "1px solid #E5E7EB", whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer",
           }}
         >
-          {playerName ? `🦕 ${playerName}` : "設定名字"}
-        </div>
+          🦕 {playerName}
+        </button>
 
-        {/* Score */}
         <div style={{ flex: 1, textAlign: "center", fontFamily: "monospace" }}>
-          <span style={{ fontSize: 16, color: "#374151", fontWeight: 700 }}>
+          <span style={{ fontSize: 18, color: "#374151", fontWeight: 800 }}>
             {String(score).padStart(5, "0")}
           </span>
-          <span style={{ fontSize: 16, color: "#9CA3AF", fontWeight: 700, marginLeft: 16 }}>
+          <span style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 700, marginLeft: 12 }}>
             HI {String(best).padStart(5, "0")}
           </span>
         </div>
 
-        {/* Leaderboard btn */}
         {hasLeaderboardUrl && (
-          <div
+          <button
             onClick={(e) => { e.stopPropagation(); setShowLeaderboard((v) => !v); fetchLeaderboard(); }}
             style={{
               fontSize: 13, fontWeight: 700, color: "#6D28D9",
-              background: "#F5F3FF", borderRadius: 8, padding: "4px 10px", cursor: "pointer",
-              border: "1px solid #DDD6FE", whiteSpace: "nowrap",
+              background: "#F5F3FF", borderRadius: 8, padding: "6px 12px",
+              border: "1px solid #DDD6FE", whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer",
             }}
           >
             🏆 排行榜
-          </div>
+          </button>
         )}
       </div>
 
-      {/* Game canvas */}
-      <div style={{ position: "relative", width: gameW, height: GAME_H + groundY + 4, overflow: "hidden" }}>
+      {/* ── 遊戲畫布（點擊區）── */}
+      <div
+        ref={gameAreaRef}
+        onClick={jump}
+        style={{
+          position: "relative", width: "100%", flex: 1,
+          overflow: "hidden", cursor: "pointer", background: "#FAFAFA",
+        }}
+      >
         {clouds.map((c, i) => (
           <div key={i} style={{
             position: "absolute", top: c.y, left: c.x, width: c.w, height: 18,
             borderRadius: 99, background: "#E5E7EB", opacity: 0.7,
           }} />
         ))}
+        {/* Ground */}
         <div style={{ position: "absolute", bottom: groundY, left: 0, right: 0, height: 2, background: "#6B7280" }} />
         {Array.from({ length: Math.floor(gameW / 70) }, (_, i) => (i + 1) * 60).map((x) => (
-          <div key={x} style={{ position: "absolute", bottom: groundY - 4, left: x, width: 4, height: 2, background: "#D1D5DB" }} />
+          <div key={x} style={{ position: "absolute", bottom: groundY - 5, left: x, width: 4, height: 2, background: "#D1D5DB" }} />
         ))}
-        <div style={{ position: "absolute", bottom: dinoBottom, left: DINO_X, opacity: dead ? 0.5 : 1, transition: dead ? "opacity 0.2s" : "none" }}>
+        <div style={{
+          position: "absolute", bottom: dinoBottom, left: DINO_X,
+          opacity: dead ? 0.5 : 1, transition: dead ? "opacity 0.2s" : "none",
+        }}>
           <DinoSVG frame={dead ? "dead" : !started ? 0 : frame} />
         </div>
         {obstacles.map((o, i) => (
@@ -291,33 +295,62 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
             {o.type === "tall" ? <TallCactusSVG h={o.h} /> : <CactusSVG h={o.h} />}
           </div>
         ))}
+
+        {/* Hint overlay（只在沒開始時顯示） */}
+        {!started && (
+          <div style={{
+            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <span style={{
+              fontSize: 15, fontWeight: 700, color: "#9CA3AF",
+              background: "rgba(255,255,255,0.85)", padding: "6px 16px", borderRadius: 20,
+            }}>
+              {onLoaded ? "點擊開始遊戲" : "載入資料中..."}
+            </span>
+          </div>
+        )}
+        {dead && (
+          <div style={{
+            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <span style={{
+              fontSize: 15, fontWeight: 700, color: "#DC2626",
+              background: "rgba(255,255,255,0.9)", padding: "6px 16px", borderRadius: 20,
+            }}>
+              撞到了！點擊重新開始
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Status text */}
-      <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#6B7280", textAlign: "center", minHeight: 20, padding: "0 12px" }}>
-        {dead
-          ? "撞到了！點擊螢幕重新開始"
-          : !started
-          ? "點擊螢幕開始・載入資料中..."
-          : onLoaded ? "資料已載入完成" : "載入資料中..."}
+      {/* ── 底部：進入按鈕 ── */}
+      <div style={{
+        flexShrink: 0, padding: "12px 16px",
+        display: "flex", justifyContent: "center",
+        background: "#fff", borderTop: "1px solid #F1F5F9",
+      }}>
+        {onLoaded ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); saveScore(Math.floor(scoreRef.current / 6)); onEnter?.(); }}
+            style={{
+              width: "100%", maxWidth: 400, padding: "14px 0", fontSize: 16, fontWeight: 800,
+              background: "linear-gradient(135deg, #C8860A 0%, #F59E0B 100%)",
+              color: "#fff", border: "none", borderRadius: 12, cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(200,134,10,0.35)", letterSpacing: 1,
+            }}
+          >
+            進入登記表 →
+          </button>
+        ) : (
+          <p style={{ margin: 0, fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>
+            載入資料中，請稍候...
+          </p>
+        )}
       </div>
-
-      {/* Enter button — fixed at bottom, doesn't affect layout */}
-      {onLoaded && (
-        <button
-          onClick={(e) => { e.stopPropagation(); saveScore(Math.floor(scoreRef.current / 6)); onEnter?.(); }}
-          style={{
-            position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
-            padding: "14px 40px", fontSize: 16, fontWeight: 800,
-            background: "linear-gradient(135deg, #C8860A 0%, #F59E0B 100%)",
-            color: "#fff", border: "none", borderRadius: 14, cursor: "pointer",
-            boxShadow: "0 4px 20px rgba(200,134,10,0.45)", letterSpacing: 1,
-            whiteSpace: "nowrap", zIndex: 60,
-          }}
-        >
-          進入登記表 →
-        </button>
-      )}
+    </div>
+  );
 
       {/* Name input modal */}
       {showNameInput && (
