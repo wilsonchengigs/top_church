@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef, CSSProperties, useCallback } from "react";
 
 // ── DinoLoader (mini-game) ─────────────────────────────────────
-const GAME_H = 120;
 const DINO_X = 40;
 const DINO_W = 34;
 const DINO_H = 48;
@@ -33,7 +32,7 @@ function useGameSize() {
 }
 
 function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () => void }) {
-  const { w: gameW, h: gameH } = useGameSize();
+  const { w: gameW } = useGameSize();
   const [dinoY, setDinoY] = useState(0);
   const [frame, setFrame] = useState<0 | 1>(0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);

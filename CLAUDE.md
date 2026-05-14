@@ -14,6 +14,10 @@ npm run test         # Run tests in watch mode
 npm run deploy       # Build + deploy to GitHub Pages (gh-pages -d dist)
 ```
 
+## Working Rules
+
+**After every code change, run `npm run build` to verify no TypeScript or build errors before considering the task done.**
+
 ## Architecture
 
 This is a single-page React 19 + TypeScript app built with Vite, styled with Tailwind CSS 4, and routed with React Router 7. It is deployed to GitHub Pages at `https://wilsoniscoding.github.io/top_church/` — Vite base is set to `"./"` for relative asset paths.
