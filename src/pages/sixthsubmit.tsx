@@ -349,8 +349,6 @@ function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () =>
           </p>
         )}
       </div>
-    </div>
-  );
 
       {/* Name input modal */}
       {showNameInput && (
