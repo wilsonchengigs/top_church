@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function BibleVerseLoader({ verses }: { verses: string[] }) {
+export default function BibleVerseLoader({ verses }: { verses: readonly string[] }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {

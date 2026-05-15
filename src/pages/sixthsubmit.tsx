@@ -1,661 +1,26 @@
-import { useEffect, useState, useMemo, useRef, CSSProperties, useCallback } from "react";
+import { useEffect, useState, useMemo, CSSProperties } from "react";
+import DinoGame from "../components/game/DinoGame";
+import { useSearchInput } from "../hooks/useSearchInput";
+import { fetchAttendancePeople, postJson } from "../services/api";
+import {
+  API_ENDPOINTS,
+  SESSION_LABELS,
+  ATTENDANCE_STATUS,
+  BADGE_SIZE,
+  GRAY_BADGE_URL,
+  COLOR_BADGE_URL,
+} from "../constants";
+import type {
+  AttendancePerson,
+  AttendanceUpdateItem,
+  AttendanceSubmitResult,
+  PendingChecks,
+} from "../types";
 
-// ── DinoLoader (mini-game) ─────────────────────────────────────
-const DINO_X = 40;
-const DINO_W = 34;
-const DINO_H = 48;
-const JUMP_V = 14;
-const GRAVITY = 0.9;
-const BASE_SPEED = 5;
-
-// ★ 部署完 Apps Script 後把 URL 貼這裡
-const LEADERBOARD_URL = "https://script.google.com/macros/s/AKfycbwFsXCKwNEDgDglJNPDtjNe8CTd-x-pScfj-VhMSBIlYUwYpC0F6g7J36_tM69Rw7Xz/exec";
-
-interface Obstacle { x: number; w: number; h: number; type: "cactus" | "tall"; }
-interface Cloud { x: number; y: number; w: number; }
-interface LeaderEntry { rank: number; name: string; score: number; }
-
-function useGameSize() {
-  const [size, setSize] = useState(() => ({
-    w: Math.min(window.innerWidth - 16, 520),
-    h: Math.min(Math.floor(window.innerHeight * 0.45), 280),
-  }));
-  useEffect(() => {
-    const update = () => setSize({
-      w: Math.min(window.innerWidth - 16, 520),
-      h: Math.min(Math.floor(window.innerHeight * 0.45), 280),
-    });
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-  return size;
-}
-
-function DinoLoader({ onLoaded, onEnter }: { onLoaded?: boolean; onEnter?: () => void }) {
-  const { w: gameW } = useGameSize();
-  const [dinoY, setDinoY] = useState(0);
-  const [frame, setFrame] = useState<0 | 1>(0);
-  const [obstacles, setObstacles] = useState<Obstacle[]>([]);
-  const [clouds, setClouds] = useState<Cloud[]>([
-    { x: 300, y: 20, w: 60 },
-    { x: 160, y: 10, w: 45 },
-  ]);
-  const [score, setScore] = useState(0);
-  const [best, setBest] = useState(() => parseInt(localStorage.getItem("dino_best") || "0"));
-  const [dead, setDead] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [flash, setFlash] = useState(false);
-
-  // 姓名
-  const [playerName, setPlayerName] = useState(() => {
-    const saved = localStorage.getItem("dino_name");
-    if (saved) return saved;
-    const random = "player" + Math.floor(Math.random() * 900 + 100);
-    localStorage.setItem("dino_name", random);
-    return random;
-  });
-  const [nameInput, setNameInput] = useState(() => localStorage.getItem("dino_name") || "");
-  const [showNameInput, setShowNameInput] = useState(false);
-
-  // 排行榜
-  const [leaderboard, setLeaderboard] = useState<LeaderEntry[]>([]);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-
-  const deadRef = useRef(false);
-  const startedRef = useRef(false);
-  const dinoYRef = useRef(0);
-  const velYRef = useRef(0);
-  const obsRef = useRef<Obstacle[]>([]);
-  const scoreRef = useRef(0);
-  const rafRef = useRef<number>(0);
-  const lastObsRef = useRef(0);
-  const playerNameRef = useRef(playerName);
-  const gameWRef = useRef(gameW);
-  useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
-  useEffect(() => { gameWRef.current = gameW; }, [gameW]);
-
-  const fetchLeaderboard = useCallback(async () => {
-    if (!LEADERBOARD_URL || LEADERBOARD_URL.startsWith("YOUR_")) return;
-    try {
-      const res = await fetch(LEADERBOARD_URL);
-      const data = await res.json();
-      if (data.scores) setLeaderboard(data.scores);
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => { fetchLeaderboard(); }, [fetchLeaderboard]);
-
-  const saveScore = useCallback(async (finalScore: number) => {
-    const name = playerNameRef.current.trim();
-    if (!name || !LEADERBOARD_URL || LEADERBOARD_URL.startsWith("YOUR_")) return;
-    try {
-      await fetch(LEADERBOARD_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ name, score: finalScore }),
-      });
-      fetchLeaderboard();
-    } catch { /* ignore */ }
-  }, [fetchLeaderboard]);
-
-  const jump = useCallback(() => {
-    if (deadRef.current) {
-      deadRef.current = false;
-      startedRef.current = true;
-      dinoYRef.current = 0;
-      velYRef.current = 0;
-      obsRef.current = [];
-      scoreRef.current = 0;
-      lastObsRef.current = 0;
-      setDead(false);
-      setStarted(true);
-      setScore(0);
-      setObstacles([]);
-      setDinoY(0);
-      return;
-    }
-    if (!startedRef.current) {
-      startedRef.current = true;
-      setStarted(true);
-    }
-    if (dinoYRef.current <= 2) {
-      velYRef.current = JUMP_V;
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); jump(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [jump]);
-
-  // 資料載完但還沒開始玩 → 直接進入
-  useEffect(() => {
-    if (onLoaded && !startedRef.current) {
-      onEnter?.();
-    }
-  }, [onLoaded, onEnter]);
-
-  useEffect(() => {
-    let tick = 0;
-    // 每 10 秒自動存一次（約 600 ticks @ 60fps）
-    const autoSaveInterval = setInterval(() => {
-      if (startedRef.current && !deadRef.current && scoreRef.current > 0) {
-        saveScore(Math.floor(scoreRef.current / 6));
-      }
-    }, 10000);
-
-    function loop() {
-      tick++;
-      if (tick % 2 === 0) {
-        setClouds((prev) =>
-          prev.map((c) => ({ ...c, x: c.x - 0.6 < -c.w ? gameWRef.current + 40 : c.x - 0.6 }))
-        );
-      }
-      if (tick % 8 === 0 && startedRef.current && !deadRef.current) {
-        setFrame((f) => (f === 0 ? 1 : 0));
-      }
-      if (!startedRef.current || deadRef.current) {
-        rafRef.current = requestAnimationFrame(loop);
-        return;
-      }
-      velYRef.current = Math.max(velYRef.current - GRAVITY, -20);
-      dinoYRef.current = Math.max(dinoYRef.current + velYRef.current, 0);
-      setDinoY(dinoYRef.current);
-      scoreRef.current += 1;
-      if (tick % 6 === 0) setScore(Math.floor(scoreRef.current / 6));
-      const speed = BASE_SPEED + Math.floor(scoreRef.current / 300) * 0.8;
-      const minGap = Math.max(90, 160 - Math.floor(scoreRef.current / 200) * 10);
-      if (tick - lastObsRef.current > minGap) {
-        const tall = Math.random() < 0.3;
-        obsRef.current = [
-          ...obsRef.current,
-          { x: gameWRef.current + 10, w: tall ? 22 : 28, h: tall ? 72 : 52, type: tall ? "tall" : "cactus" },
-        ];
-        lastObsRef.current = tick;
-      }
-      obsRef.current = obsRef.current.map((o) => ({ ...o, x: o.x - speed })).filter((o) => o.x > -50);
-      setObstacles([...obsRef.current]);
-      const dinoLeft = DINO_X + 6;
-      const dinoRight = DINO_X + DINO_W - 6;
-      const dinoBottom = dinoYRef.current;
-      const dinoTop = dinoBottom + DINO_H - 4;
-      for (const o of obsRef.current) {
-        if (dinoRight > o.x + 4 && dinoLeft < o.x + o.w - 4 && dinoBottom < o.h && dinoTop > 0) {
-          deadRef.current = true;
-          setDead(true);
-          setFlash(true);
-          setTimeout(() => setFlash(false), 300);
-          const finalScore = Math.floor(scoreRef.current / 6);
-          const newBest = Math.max(best, finalScore);
-          setBest(newBest);
-          localStorage.setItem("dino_best", String(newBest));
-          saveScore(finalScore);
-          break;
-        }
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    }
-    rafRef.current = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(rafRef.current); clearInterval(autoSaveInterval); };
-  }, [best, saveScore]);
-
-  const groundY = 20;
-  const dinoBottom = groundY + dinoY;
-  const hasLeaderboardUrl = LEADERBOARD_URL && !LEADERBOARD_URL.startsWith("YOUR_");
-
-
-  const gameAreaRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = gameAreaRef.current;
-    if (!el) return;
-    const handler = (e: TouchEvent) => { e.preventDefault(); jump(); };
-    el.addEventListener("touchstart", handler, { passive: false });
-    return () => el.removeEventListener("touchstart", handler);
-  }, [jump]);
-
-  return (
-    <div style={{
-      position: "fixed", inset: 0, display: "flex", flexDirection: "column",
-      background: flash ? "#fff0f0" : "#fff", transition: "background 0.15s",
-      zIndex: 50, userSelect: "none",
-    }}>
-
-      {/* ── 頂部列：名字 + 分數 + 排行榜 ── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "12px 16px 10px", borderBottom: "1px solid #F1F5F9",
-        background: "#fff", flexShrink: 0,
-      }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowNameInput(true); }}
-          style={{
-            fontSize: 13, fontWeight: 700, color: "#374151",
-            background: "#F3F4F6", borderRadius: 8, padding: "6px 12px",
-            border: "1px solid #E5E7EB", whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer",
-          }}
-        >
-          🦕 {playerName}
-        </button>
-
-        <div style={{ flex: 1, textAlign: "center", fontFamily: "monospace" }}>
-          <span style={{ fontSize: 18, color: "#374151", fontWeight: 800 }}>
-            {String(score).padStart(5, "0")}
-          </span>
-          <span style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 700, marginLeft: 12 }}>
-            HI {String(best).padStart(5, "0")}
-          </span>
-        </div>
-
-        {hasLeaderboardUrl && (
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowLeaderboard((v) => !v); fetchLeaderboard(); }}
-            style={{
-              fontSize: 13, fontWeight: 700, color: "#6D28D9",
-              background: "#F5F3FF", borderRadius: 8, padding: "6px 12px",
-              border: "1px solid #DDD6FE", whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer",
-            }}
-          >
-            🏆 排行榜
-          </button>
-        )}
-      </div>
-
-      {/* ── 遊戲畫布（點擊區）── */}
-      <div
-        ref={gameAreaRef}
-        onClick={jump}
-        style={{
-          position: "relative", width: "100%", flex: 1,
-          overflow: "hidden", cursor: "pointer", background: "#FAFAFA",
-        }}
-      >
-        {clouds.map((c, i) => (
-          <div key={i} style={{
-            position: "absolute", top: c.y, left: c.x, width: c.w, height: 18,
-            borderRadius: 99, background: "#E5E7EB", opacity: 0.7,
-          }} />
-        ))}
-        {/* Ground */}
-        <div style={{ position: "absolute", bottom: groundY, left: 0, right: 0, height: 2, background: "#6B7280" }} />
-        {Array.from({ length: Math.floor(gameW / 70) }, (_, i) => (i + 1) * 60).map((x) => (
-          <div key={x} style={{ position: "absolute", bottom: groundY - 5, left: x, width: 4, height: 2, background: "#D1D5DB" }} />
-        ))}
-        <div style={{
-          position: "absolute", bottom: dinoBottom, left: DINO_X,
-          opacity: dead ? 0.5 : 1, transition: dead ? "opacity 0.2s" : "none",
-        }}>
-          <DinoSVG frame={dead ? "dead" : !started ? 0 : frame} />
-        </div>
-        {obstacles.map((o, i) => (
-          <div key={i} style={{ position: "absolute", bottom: groundY, left: o.x }}>
-            {o.type === "tall" ? <TallCactusSVG h={o.h} /> : <CactusSVG h={o.h} />}
-          </div>
-        ))}
-
-        {/* Hint overlay（只在沒開始時顯示） */}
-        {!started && (
-          <div style={{
-            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-            pointerEvents: "none",
-          }}>
-            <span style={{
-              fontSize: 15, fontWeight: 700, color: "#9CA3AF",
-              background: "rgba(255,255,255,0.85)", padding: "6px 16px", borderRadius: 20,
-            }}>
-              {onLoaded ? "點擊開始遊戲" : "載入資料中..."}
-            </span>
-          </div>
-        )}
-        {dead && (
-          <div style={{
-            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-            pointerEvents: "none",
-          }}>
-            <span style={{
-              fontSize: 15, fontWeight: 700, color: "#DC2626",
-              background: "rgba(255,255,255,0.9)", padding: "6px 16px", borderRadius: 20,
-            }}>
-              撞到了！點擊重新開始
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* ── 底部：進入按鈕 ── */}
-      <div style={{
-        flexShrink: 0, padding: "12px 16px",
-        display: "flex", justifyContent: "center",
-        background: "#fff", borderTop: "1px solid #F1F5F9",
-      }}>
-        {onLoaded ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); saveScore(Math.floor(scoreRef.current / 6)); onEnter?.(); }}
-            style={{
-              width: "100%", maxWidth: 400, padding: "14px 0", fontSize: 16, fontWeight: 800,
-              background: "linear-gradient(135deg, #C8860A 0%, #F59E0B 100%)",
-              color: "#fff", border: "none", borderRadius: 12, cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(200,134,10,0.35)", letterSpacing: 1,
-            }}
-          >
-            進入登記表 →
-          </button>
-        ) : (
-          <p style={{ margin: 0, fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>
-            載入資料中，請稍候...
-          </p>
-        )}
-      </div>
-
-      {/* Name input modal */}
-      {showNameInput && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <div style={{
-            background: "#fff", borderRadius: 16, padding: "28px 24px 24px",
-            width: "min(300px, calc(100vw - 40px))",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
-          }}>
-            <p style={{ margin: "0 0 16px", fontWeight: 800, fontSize: 17, color: "#1E293B" }}>輸入你的名字</p>
-            <input
-              autoFocus
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const n = nameInput.trim();
-                  if (n) { setPlayerName(n); localStorage.setItem("dino_name", n); }
-                  setShowNameInput(false);
-                }
-              }}
-              placeholder="你的名字..."
-              style={{
-                width: "100%", padding: "12px 14px", fontSize: 16, borderRadius: 10,
-                border: "1.5px solid #CBD5E1", outline: "none", boxSizing: "border-box",
-              }}
-            />
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <button
-                onClick={() => {
-                  const n = nameInput.trim();
-                  if (n) { setPlayerName(n); localStorage.setItem("dino_name", n); }
-                  setShowNameInput(false);
-                }}
-                style={{
-                  flex: 1, padding: "10px 0", fontWeight: 700, fontSize: 15,
-                  background: "#1E3A5F", color: "#fff", border: "none", borderRadius: 10, cursor: "pointer",
-                }}
-              >
-                確認
-              </button>
-              <button
-                onClick={() => setShowNameInput(false)}
-                style={{
-                  flex: 1, padding: "10px 0", fontWeight: 700, fontSize: 15,
-                  background: "#F1F5F9", color: "#64748B", border: "none", borderRadius: 10, cursor: "pointer",
-                }}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Leaderboard modal */}
-      {showLeaderboard && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <div style={{
-            background: "#fff", borderRadius: 16, padding: "24px 20px 20px",
-            width: "min(340px, calc(100vw - 32px))",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.2)", maxHeight: "85vh", overflowY: "auto",
-          }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div>
-                <p style={{ margin: "0 0 2px", fontWeight: 800, fontSize: 18, color: "#1E293B" }}>🏆 排行榜</p>
-                <p style={{ margin: 0, fontSize: 11, color: "#94A3B8" }}>成績約每 30 秒更新一次</p>
-              </div>
-              <button
-                onClick={() => setShowLeaderboard(false)}
-                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94A3B8", lineHeight: 1 }}
-              >✕</button>
-            </div>
-
-            {/* 我的紀錄 */}
-            {playerName && (
-              <div style={{
-                background: "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)",
-                border: "1.5px solid #BFDBFE", borderRadius: 12, padding: "12px 14px", marginBottom: 16,
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", marginBottom: 6, letterSpacing: 0.5 }}>
-                  🦕 我的紀錄
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1E3A5F" }}>{playerName}</span>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 20, color: "#1E40AF" }}>
-                      {String(best).padStart(5, "0")}
-                    </div>
-                    {(() => {
-                      const myRank = leaderboard.findIndex((e) => e.name === playerName);
-                      return myRank >= 0
-                        ? <div style={{ fontSize: 11, color: "#60A5FA", fontWeight: 600 }}>排名第 {myRank + 1} 名</div>
-                        : <div style={{ fontSize: 11, color: "#93C5FD" }}>尚未上榜</div>;
-                    })()}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 分隔 */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", letterSpacing: 0.5, marginBottom: 8 }}>
-              前十名
-            </div>
-
-            {/* 排行榜列表 */}
-            {leaderboard.length === 0 ? (
-              <p style={{ color: "#94A3B8", textAlign: "center", fontSize: 14, padding: "16px 0" }}>還沒有紀錄</p>
-            ) : (
-              leaderboard.slice(0, 10).map((entry) => {
-                const isMe = entry.name === playerName;
-                return (
-                  <div key={entry.rank} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 10px",
-                    marginBottom: 4,
-                    borderRadius: 10,
-                    background: isMe ? "#FFF7ED" : entry.rank <= 3 ? "#FAFAFA" : "transparent",
-                    border: isMe ? "1.5px solid #FED7AA" : "1.5px solid transparent",
-                  }}>
-                    <span style={{
-                      width: 26, textAlign: "center", fontWeight: 800, fontSize: 15, flexShrink: 0,
-                    }}>
-                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : (
-                        <span style={{ fontSize: 12, color: "#94A3B8" }}>#{entry.rank}</span>
-                      )}
-                    </span>
-                    <span style={{
-                      flex: 1, fontWeight: isMe ? 800 : 600, fontSize: 15,
-                      color: isMe ? "#C2410C" : "#1E293B",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>
-                      {entry.name}{isMe ? " 👈" : ""}
-                    </span>
-                    <span style={{
-                      fontFamily: "monospace", fontWeight: 700, fontSize: 15,
-                      color: entry.rank === 1 ? "#D97706" : isMe ? "#EA580C" : "#374151",
-                      flexShrink: 0,
-                    }}>
-                      {String(entry.score).padStart(5, "0")}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DinoSVG({ frame }: { frame: 0 | 1 | "dead" }) {
-  return (
-    <svg width={DINO_W * 2} height={DINO_H * 2} viewBox="0 0 34 48" fill="#535353">
-      {/* body */}
-      <rect x="4" y="14" width="22" height="18" />
-      {/* neck */}
-      <rect x="18" y="8" width="10" height="10" />
-      {/* head */}
-      <rect x="20" y="2" width="14" height="12" />
-      {/* eye */}
-      <rect x="30" y="4" width="3" height="3" fill="white" />
-      {/* mouth */}
-      <rect x="32" y="12" width="2" height="2" fill={frame === "dead" ? "#DC2626" : "#535353"} />
-      {/* tail */}
-      <rect x="0" y="16" width="8" height="6" />
-      <rect x="2" y="14" width="6" height="4" />
-      {/* arm */}
-      <rect x="20" y="22" width="6" height="4" />
-      {/* legs */}
-      {frame === "dead" ? (
-        <>
-          <rect x="14" y="32" width="6" height="10" />
-          <rect x="10" y="38" width="8" height="4" />
-          <rect x="22" y="32" width="6" height="10" />
-          <rect x="22" y="38" width="8" height="4" />
-        </>
-      ) : frame === 0 ? (
-        <>
-          <rect x="14" y="32" width="6" height="12" />
-          <rect x="14" y="44" width="8" height="4" />
-          <rect x="22" y="32" width="6" height="8" />
-          <rect x="18" y="38" width="8" height="4" />
-        </>
-      ) : (
-        <>
-          <rect x="14" y="32" width="6" height="8" />
-          <rect x="10" y="38" width="8" height="4" />
-          <rect x="22" y="32" width="6" height="12" />
-          <rect x="22" y="44" width="8" height="4" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-function CactusSVG({ h }: { h: number }) {
-  return (
-    <svg width="28" height={h} viewBox={`0 0 28 ${h}`} fill="#535353">
-      <rect x="10" y="0" width="8" height={h} />
-      <rect x="2" y={h * 0.25} width="10" height="6" />
-      <rect x="2" y={h * 0.15} width="6" height="12" />
-      <rect x="18" y={h * 0.35} width="10" height="6" />
-      <rect x="22" y={h * 0.25} width="6" height="12" />
-    </svg>
-  );
-}
-
-function TallCactusSVG({ h }: { h: number }) {
-  return (
-    <svg width="22" height={h} viewBox={`0 0 22 ${h}`} fill="#4B5563">
-      <rect x="8" y="0" width="6" height={h} />
-      <rect x="1" y={h * 0.3} width="8" height="5" />
-      <rect x="1" y={h * 0.2} width="5" height="14" />
-      <rect x="13" y={h * 0.45} width="8" height="5" />
-      <rect x="17" y={h * 0.35} width="5" height="14" />
-    </svg>
-  );
-}
-
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzkyg10DQolseMzmerKqvPjRZutThSKNipeBjVuCjmXRStEIupRNQXcBA17VghQhlS0fQ/exec";
-
-const SESSION_LABELS = ["第一次", "第二次", "第三次", "第四次", "第五次", "第六次"];
-const ROMAN = ["I", "II", "III", "IV", "V", "VI"];
-const BADGE_SIZE = 40;
-
-const GRAY_BADGE = (n: number) =>
-  `/topchurch_grayscale_svg_badges/topchurch_badge_${ROMAN[n - 1]}_grayscale.svg`;
-const COLOR_BADGE = (n: number) =>
-  `/topchurch_color_svg_badges/topchurch_badge_${ROMAN[n - 1]}_color.svg`;
-
-const STATUS = { NOT_REGISTERED: "尚報名", CHECKED: "✓", CROSSED: "✗" } as const;
 const isSpecialSession = (s: number) => s >= 4;
 
-// ── Types ──────────────────────────────────────────────────────
-interface Person {
-  area: string;
-  group: string;
-  name: string;
-  sessions: Record<number, string>;
-}
-
-interface UpdateItem {
-  name: string;
-  session: number;
-}
-
-interface SubmitResultItem {
-  name: string;
-  session: number;
-  success: boolean;
-  reason?: string;
-}
-
-interface SubmitResultData {
-  success: boolean;
-  results?: SubmitResultItem[];
-  error?: string;
-}
-
-type PendingChecks = Record<string, boolean>;
-
-// ── Search autocomplete hook ───────────────────────────────────
-interface SearchInput {
-  query: string;
-  setQuery: (v: string) => void;
-  open: boolean;
-  setOpen: (v: boolean) => void;
-  active: number;
-  setActive: (fn: number | ((prev: number) => number)) => void;
-  ref: React.RefObject<HTMLDivElement | null>;
-}
-
-function useSearchInput(): SearchInput {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return { query, setQuery, open, setOpen, active, setActive, ref };
-}
-
-// ─────────────────────────────────────────────────────────────
 export default function AttendanceApp() {
-  const [allPeople, setAllPeople] = useState<Person[]>([]);
+  const [allPeople, setAllPeople] = useState<AttendancePerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameVisible, setGameVisible] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -671,12 +36,11 @@ export default function AttendanceApp() {
   const [pendingChecks, setPendingChecks] = useState<PendingChecks>({});
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState<SubmitResultData | null>(null);
+  const [submitResult, setSubmitResult] = useState<AttendanceSubmitResult | null>(null);
 
   useEffect(() => {
-    fetch(SCRIPT_URL)
-      .then((r) => r.json())
-      .then((data) => setAllPeople(data.people || []))
+    fetchAttendancePeople(API_ENDPOINTS.SIXTH_SUBMIT)
+      .then(setAllPeople)
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -722,8 +86,8 @@ export default function AttendanceApp() {
     let done = 0;
     for (const p of people) {
       for (const s of [4, 5, 6]) {
-        const isPending = !!pendingChecks[`${p.name}_${s}`];
-        if (p.sessions[s] === STATUS.CHECKED || isPending) done++;
+        if (p.sessions[s] === ATTENDANCE_STATUS.CHECKED || !!pendingChecks[`${p.name}_${s}`])
+          done++;
       }
     }
     return Math.round((done / (3 * people.length)) * 100);
@@ -734,7 +98,6 @@ export default function AttendanceApp() {
     [pendingChecks]
   );
 
-  // Gray (#9CA3AF → #64748B) to gold (#D4A017 → #B8860B) gradient transition
   const btnStyle = useMemo((): CSSProperties => {
     const hasWork = pendingCount > 0 || note.trim().length > 0;
     if (!hasWork) {
@@ -804,7 +167,7 @@ export default function AttendanceApp() {
     const hasWork = pendingCount > 0 || note.trim().length > 0;
     if (!hasWork || submitting) return;
 
-    const updates: UpdateItem[] = [];
+    const updates: AttendanceUpdateItem[] = [];
     for (const [key, checked] of Object.entries(pendingChecks)) {
       if (!checked) continue;
       const lastUnderscore = key.lastIndexOf("_");
@@ -822,12 +185,10 @@ export default function AttendanceApp() {
     setSubmitting(true);
     setSubmitResult(null);
     try {
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(payload),
-      });
-      const data: SubmitResultData = await res.json();
+      const { data } = await postJson<typeof payload, AttendanceSubmitResult>(
+        API_ENDPOINTS.SIXTH_SUBMIT,
+        payload
+      );
       setSubmitResult(data);
       if (data.success) {
         const successKeys = new Set(
@@ -837,7 +198,7 @@ export default function AttendanceApp() {
         );
         setAllPeople((prev) =>
           prev.map((p) => {
-            const updated: Person = { ...p, sessions: { ...p.sessions } };
+            const updated: AttendancePerson = { ...p, sessions: { ...p.sessions } };
             for (let s = 1; s <= 6; s++) {
               if (successKeys.has(`${p.name}_${s}`)) updated.sessions[s] = "✓";
             }
@@ -854,9 +215,13 @@ export default function AttendanceApp() {
     }
   };
 
-  if (gameVisible) return (
-    <DinoLoader onLoaded={!loading || fetchError} onEnter={() => setGameVisible(false)} />
-  );
+  if (gameVisible)
+    return (
+      <DinoGame
+        onLoaded={!loading || fetchError}
+        onEnter={() => setGameVisible(false)}
+      />
+    );
 
   if (fetchError)
     return (
@@ -876,16 +241,14 @@ export default function AttendanceApp() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={S.container}>
         <div style={S.card}>
-          {/* Gold top accent */}
           <div style={S.goldAccent} />
 
-          {/* Header */}
           <div style={S.header}>
             <h1 style={S.title}>日日有光登記表</h1>
             <p style={S.subtitle}>可依小組查詢，或直接搜尋個人姓名</p>
           </div>
 
-          {/* ── 牧區 ── */}
+          {/* 牧區 */}
           <div style={S.section}>
             <label style={S.label}>牧區</label>
             <select
@@ -900,7 +263,7 @@ export default function AttendanceApp() {
             </select>
           </div>
 
-          {/* ── 小組 Autocomplete ── */}
+          {/* 小組 Autocomplete */}
           <div style={S.section}>
             <label style={S.label}>小組（輸入搜尋）</label>
             <div ref={groupSearch.ref} style={{ position: "relative" }}>
@@ -913,17 +276,27 @@ export default function AttendanceApp() {
                   groupSearch.setQuery(e.target.value);
                   groupSearch.setOpen(true);
                   groupSearch.setActive(-1);
-                  if (!e.target.value) { setSelectedGroup(""); resetAll(); }
+                  if (!e.target.value) {
+                    setSelectedGroup("");
+                    resetAll();
+                  }
                 }}
                 onFocus={() => groupSearch.setOpen(true)}
                 onKeyDown={(e) => {
                   const opts = groupOptions.filter((g) =>
                     g.toLowerCase().includes(groupSearch.query.toLowerCase())
                   );
-                  if (e.key === "ArrowDown") { groupSearch.setActive((a) => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
-                  else if (e.key === "ArrowUp") { groupSearch.setActive((a) => Math.max(a - 1, 0)); e.preventDefault(); }
-                  else if (e.key === "Enter" && groupSearch.active >= 0) handleGroupSelect(opts[groupSearch.active]);
-                  else if (e.key === "Escape") groupSearch.setOpen(false);
+                  if (e.key === "ArrowDown") {
+                    groupSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
+                    e.preventDefault();
+                  } else if (e.key === "ArrowUp") {
+                    groupSearch.setActive((a) => Math.max(a - 1, 0));
+                    e.preventDefault();
+                  } else if (e.key === "Enter" && groupSearch.active >= 0) {
+                    handleGroupSelect(opts[groupSearch.active]);
+                  } else if (e.key === "Escape") {
+                    groupSearch.setOpen(false);
+                  }
                 }}
               />
               {groupSearch.open && selectedArea && (
@@ -941,14 +314,14 @@ export default function AttendanceApp() {
             </div>
           </div>
 
-          {/* ── OR divider ── */}
+          {/* OR divider */}
           <div style={S.orDivider}>
             <span style={S.orLine} />
             <span style={S.orText}>或直接搜尋姓名</span>
             <span style={S.orLine} />
           </div>
 
-          {/* ── 個人搜尋 ── */}
+          {/* 個人搜尋 */}
           <div style={S.section}>
             <label style={S.label}>個人搜尋</label>
             <div ref={nameSearch.ref} style={{ position: "relative" }}>
@@ -960,15 +333,25 @@ export default function AttendanceApp() {
                   nameSearch.setQuery(e.target.value);
                   nameSearch.setOpen(true);
                   nameSearch.setActive(-1);
-                  if (!e.target.value) { setSelectedName(""); resetAll(); }
+                  if (!e.target.value) {
+                    setSelectedName("");
+                    resetAll();
+                  }
                 }}
                 onFocus={() => nameSearch.setOpen(true)}
                 onKeyDown={(e) => {
                   const opts = allNames.filter((n) => n.includes(nameSearch.query));
-                  if (e.key === "ArrowDown") { nameSearch.setActive((a) => Math.min(a + 1, opts.length - 1)); e.preventDefault(); }
-                  else if (e.key === "ArrowUp") { nameSearch.setActive((a) => Math.max(a - 1, 0)); e.preventDefault(); }
-                  else if (e.key === "Enter" && nameSearch.active >= 0) handleNameSelect(opts[nameSearch.active]);
-                  else if (e.key === "Escape") nameSearch.setOpen(false);
+                  if (e.key === "ArrowDown") {
+                    nameSearch.setActive((a) => Math.min(a + 1, opts.length - 1));
+                    e.preventDefault();
+                  } else if (e.key === "ArrowUp") {
+                    nameSearch.setActive((a) => Math.max(a - 1, 0));
+                    e.preventDefault();
+                  } else if (e.key === "Enter" && nameSearch.active >= 0) {
+                    handleNameSelect(opts[nameSearch.active]);
+                  } else if (e.key === "Escape") {
+                    nameSearch.setOpen(false);
+                  }
                 }}
               />
               {nameSearch.open && nameSearch.query && (
@@ -982,10 +365,9 @@ export default function AttendanceApp() {
             </div>
           </div>
 
-          {/* ── 出席表 ── */}
+          {/* 出席表 */}
           {showTable && (
             <div style={S.section}>
-              {/* Section heading + legend toggle */}
               <div style={S.tableHeadingRow}>
                 <label style={{ ...S.label, marginBottom: 0 }}>
                   {mode === "name"
@@ -1000,27 +382,25 @@ export default function AttendanceApp() {
                 </button>
               </div>
 
-              {/* 圖例 (collapsible) */}
               {legendOpen && (
                 <div style={S.legendBox}>
                   <div style={S.legendCol}>
                     <span style={S.legendTitle}>1189</span>
-                    <LegendItem imgGray imgSrc={GRAY_BADGE(1)} label="尚報名（不可補登）" />
-                    <LegendItem imgSrc={GRAY_BADGE(1)} border label="未完成（可補登）" />
-                    <LegendItem imgSrc={COLOR_BADGE(1)} label="已完成" />
-                    <LegendItem imgSrc={COLOR_BADGE(1)} pending label="待送出" />
+                    <LegendItem imgGray imgSrc={GRAY_BADGE_URL(1)} label="尚報名（不可補登）" />
+                    <LegendItem imgSrc={GRAY_BADGE_URL(1)} border label="未完成（可補登）" />
+                    <LegendItem imgSrc={COLOR_BADGE_URL(1)} label="已完成" />
+                    <LegendItem imgSrc={COLOR_BADGE_URL(1)} pending label="待送出" />
                   </div>
                   <div style={{ width: 1, background: "#DDD6FE", alignSelf: "stretch" }} />
                   <div style={S.legendCol}>
                     <span style={{ ...S.legendTitle, color: "#7C3AED" }}>日日有光</span>
-                    <LegendItem imgSrc={GRAY_BADGE(4)} border label="尚報名（可補登）" special />
-                    <LegendItem imgSrc={GRAY_BADGE(4)} border label="未完成（可補登）" special />
-                    <LegendItem imgSrc={COLOR_BADGE(4)} label="已完成" special />
+                    <LegendItem imgSrc={GRAY_BADGE_URL(4)} border label="尚報名（可補登）" special />
+                    <LegendItem imgSrc={GRAY_BADGE_URL(4)} border label="未完成（可補登）" special />
+                    <LegendItem imgSrc={COLOR_BADGE_URL(4)} label="已完成" special />
                   </div>
                 </div>
               )}
 
-              {/* 欄位標題 */}
               <div style={S.tableHeader}>
                 <div style={S.nameCol} />
                 <div style={S.sessionGroupLabel}>1189</div>
@@ -1056,7 +436,6 @@ export default function AttendanceApp() {
                 ))}
               </div>
 
-              {/* 完成率 */}
               <div style={S.progressBar}>
                 <div style={S.progressInner}>
                   <span style={S.progressLabel}>日日有光完成率</span>
@@ -1069,7 +448,7 @@ export default function AttendanceApp() {
             </div>
           )}
 
-          {/* ── 備註 ── */}
+          {/* 備註 */}
           {showTable && (
             <div style={S.section}>
               <label style={S.label}>備註（選填）</label>
@@ -1085,7 +464,6 @@ export default function AttendanceApp() {
 
           {submitResult && <SubmitResultBox result={submitResult} />}
 
-          {/* ── 送出按鈕 ── */}
           {showTable && (
             <button
               style={{
@@ -1127,10 +505,7 @@ function Dropdown({ options, active, onSelect, onHover }: DropdownProps) {
       {options.map((opt, i) => (
         <div
           key={opt}
-          style={{
-            ...S.dropdownItem,
-            ...(i === active ? S.dropdownItemActive : {}),
-          }}
+          style={{ ...S.dropdownItem, ...(i === active ? S.dropdownItemActive : {}) }}
           onMouseDown={() => onSelect(opt)}
           onMouseEnter={() => onHover(i)}
         >
@@ -1143,7 +518,7 @@ function Dropdown({ options, active, onSelect, onHover }: DropdownProps) {
 
 // ── PersonRow ──────────────────────────────────────────────────
 interface PersonRowProps {
-  person: Person;
+  person: AttendancePerson;
   pendingChecks: PendingChecks;
   onToggle: (name: string, session: number) => void;
   showArea: boolean;
@@ -1165,10 +540,7 @@ function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonRowProps
         const isPending = !!pendingChecks[`${person.name}_${session}`];
         const special = isSpecialSession(session);
         return (
-          <div
-            key={session}
-            style={{ ...S.sessionCol, ...(special ? S.specialCol : {}) }}
-          >
+          <div key={session} style={{ ...S.sessionCol, ...(special ? S.specialCol : {}) }}>
             <SessionCell
               session={session}
               status={status}
@@ -1193,24 +565,40 @@ interface SessionCellProps {
 function SessionCell({ session, status, isPending, onClick }: SessionCellProps) {
   const special = isSpecialSession(session);
 
-  if (status === STATUS.CHECKED) {
+  if (status === ATTENDANCE_STATUS.CHECKED) {
     return (
       <div title="已完成" style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed" }}>
-        <img src={COLOR_BADGE(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
+        <img
+          src={COLOR_BADGE_URL(session)}
+          alt=""
+          width={BADGE_SIZE}
+          height={BADGE_SIZE}
+          style={{ display: "block" }}
+        />
       </div>
     );
   }
 
-  if (!special && status === STATUS.NOT_REGISTERED) {
+  if (!special && status === ATTENDANCE_STATUS.NOT_REGISTERED) {
     return (
-      <div title="尚未報名，不可補登" style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed", opacity: 0.3 }}>
-        <img src={GRAY_BADGE(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
+      <div
+        title="尚未報名，不可補登"
+        style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed", opacity: 0.3 }}
+      >
+        <img
+          src={GRAY_BADGE_URL(session)}
+          alt=""
+          width={BADGE_SIZE}
+          height={BADGE_SIZE}
+          style={{ display: "block" }}
+        />
       </div>
     );
   }
 
   const canToggle =
-    status === STATUS.CROSSED || (special && status === STATUS.NOT_REGISTERED);
+    status === ATTENDANCE_STATUS.CROSSED ||
+    (special && status === ATTENDANCE_STATUS.NOT_REGISTERED);
 
   if (canToggle) {
     return (
@@ -1228,26 +616,25 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         }}
       >
         <img
-          src={isPending ? COLOR_BADGE(session) : GRAY_BADGE(session)}
+          src={isPending ? COLOR_BADGE_URL(session) : GRAY_BADGE_URL(session)}
           alt=""
           width={BADGE_SIZE}
           height={BADGE_SIZE}
-          style={{
-            display: "block",
-            opacity: isPending ? 1 : special ? 0.65 : 0.55,
-          }}
+          style={{ display: "block", opacity: isPending ? 1 : special ? 0.65 : 0.55 }}
         />
       </div>
     );
   }
 
   return (
-    <div style={{ width: BADGE_SIZE, height: BADGE_SIZE, borderRadius: 4, background: "#E5E7EB" }} />
+    <div
+      style={{ width: BADGE_SIZE, height: BADGE_SIZE, borderRadius: 4, background: "#E5E7EB" }}
+    />
   );
 }
 
 // ── SubmitResultBox ────────────────────────────────────────────
-function SubmitResultBox({ result }: { result: SubmitResultData }) {
+function SubmitResultBox({ result }: { result: AttendanceSubmitResult }) {
   const successItems = (result.results || []).filter((r) => r.success);
   const failedItems = (result.results || []).filter((r) => !r.success);
   return (
@@ -1400,24 +787,9 @@ const S: Record<string, CSSProperties> = {
     outline: "none",
     boxSizing: "border-box",
   },
-  orDivider: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 24,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E2E8F0",
-    display: "block",
-  },
-  orText: {
-    fontSize: 13,
-    color: "#94A3B8",
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-  },
+  orDivider: { display: "flex", alignItems: "center", gap: 12, marginBottom: 24 },
+  orLine: { flex: 1, height: 1, backgroundColor: "#E2E8F0", display: "block" },
+  orText: { fontSize: 13, color: "#94A3B8", fontWeight: 600, whiteSpace: "nowrap" },
   dropdown: {
     position: "absolute",
     top: "calc(100% + 4px)",
@@ -1439,10 +811,7 @@ const S: Record<string, CSSProperties> = {
     borderBottom: "1px solid #F1F5F9",
     transition: "background 0.1s",
   },
-  dropdownItemActive: {
-    backgroundColor: "#EFF6FF",
-    color: "#1E3A5F",
-  },
+  dropdownItemActive: { backgroundColor: "#EFF6FF", color: "#1E3A5F" },
   tableHeadingRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -1471,12 +840,7 @@ const S: Record<string, CSSProperties> = {
     borderRadius: 10,
     marginBottom: 12,
   },
-  legendCol: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  },
+  legendCol: { flex: 1, display: "flex", flexDirection: "column", gap: 6 },
   legendTitle: {
     fontSize: 11,
     fontWeight: 700,
@@ -1604,20 +968,4 @@ const S: Record<string, CSSProperties> = {
     transition: "all 0.3s ease",
     marginTop: 4,
   },
-  loadingWrap: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "56px 0",
-    gap: 18,
-  },
-  spinner: {
-    width: 44,
-    height: 44,
-    border: "4px solid #E2E8F0",
-    borderTop: "4px solid #D4A017",
-    borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-  },
-  loadingText: { margin: 0, color: "#64748B", fontSize: 16 },
 };

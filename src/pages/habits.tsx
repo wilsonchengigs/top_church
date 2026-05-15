@@ -1,60 +1,27 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Helmet } from "react-helmet";
 import BibleVerseLoader from "../components/BibleVerseLoader";
-type Person = {
-  uid: string;
-  name: string;
-  phone: string;
-  group: string;
-  team: string;
-  activityPrice: number;
-  已繳費?: string; // 新增 "已繳費" 欄位
-};
+import { useActivityData } from "../hooks/useActivityData";
+import { postJson } from "../services/api";
+import { formatKey } from "../utils/format";
+import {
+  API_ENDPOINTS,
+  HABITS_HANDLERS,
+  LOADING_VERSES,
+  PAYMENT_KEY_MAP,
+  PAYMENT_EXCLUDED_KEYS,
+} from "../constants";
+import type { PaymentPersonWithActivity } from "../types";
 
-type Activity = {
-  activityName: string;
-  activityId: string;
-  activityPrice: number;
-  data: Person[];
-};
+const HANDLER_PLACEHOLDER = HABITS_HANDLERS[0];
 
-export default function PaymentSearch() {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [handler, setHandler] = useState("請選擇經手人");
-  // 紀錄已標記繳費的uid集合
-  const [paidUids, setPaidUids] = useState<Set<string>>(new Set());
-  // 紀錄正在送出的uid集合（loading狀態）
-  const [submitting, setSubmitting] = useState(false);
-  // 選擇查看某個學員的詳細資料
-  const [selectedPerson, setSelectedPerson] = useState<any>(null);
-  const excludedKeys = ["uid","activityName", "activityId", "activityPrice"];
-  const keyMap = {
-    name: "姓名",
-    phone: "電話",
-    team: "小組",
-    group: "團契",
-  };
-  const firstSightVerses = ["初次載入，請稍等..."];
-  const submittingVerses = ["繳費記錄中，請稍等..."];
-  const formUrl =
-    "https://script.google.com/macros/s/AKfycbxWdpuLM5VSCFJlo5hW27t6silbjwuwOP1jSDY-xexw8tsYLjCgaB-CM8cVDR8sVWwU/exec";
-
-  // 經手人配置
-  const hadlerConfig = [
-    "請選經手人",
-    "又藺",
-    "璧瑄",
-    "若望",
-    "玉榕",
-    "宥辰",
-    "芳瑜",
-    "皓軒",
-  ];
-  // 過濾出符合查詢條件的學員
-  const filtered = activities.flatMap((activity) => {
-    return activity.data
+function filterPersons(
+  activities: ReturnType<typeof useActivityData>["activities"],
+  query: string
+): PaymentPersonWithActivity[] {
+  if (!query) return [];
+  return activities.flatMap((activity) =>
+    activity.data
       .filter(
         (person) =>
           person.name.includes(query) ||
@@ -66,39 +33,41 @@ export default function PaymentSearch() {
         activityName: activity.activityName,
         activityId: activity.activityId,
         activityPrice: activity.activityPrice,
-      }));
-  });
-  function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // 如果不是有效日期，返回原始字串
-    return date.toLocaleDateString("en-US"); // 格式化為 MM/DD
-  }
-  async function markAsPaid(person: Person & { activityName: string }) {
-    if (handler === "請選擇經手人") {
+      }))
+  );
+}
+
+export default function HabitsTracker() {
+  const { activities, loading } = useActivityData(API_ENDPOINTS.HABITS);
+  const [query, setQuery] = useState("");
+  const [handler, setHandler] = useState<string>(HANDLER_PLACEHOLDER);
+  const [paidUids, setPaidUids] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<PaymentPersonWithActivity | null>(null);
+
+  const filtered = filterPersons(activities, query);
+
+  async function markAsPaid(person: PaymentPersonWithActivity) {
+    if (handler === HANDLER_PLACEHOLDER) {
       alert("請選擇經手人");
       return;
     }
     setSubmitting(true);
     try {
-      const res = await fetch(formUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        body: JSON.stringify({
+      const { status, data } = await postJson<unknown, { message: string }>(
+        API_ENDPOINTS.HABITS,
+        {
           activityName: person.activityName,
           name: person.name,
-          handler: handler,
+          handler,
           price: person.activityPrice,
-        }),
-      });
-      const data = await res.json();
-      if (res.status === 200) {
+        }
+      );
+      if (status === 200) {
         setPaidUids((prev) => new Set(prev).add(person.uid));
         alert(data.message);
         setSelectedPerson(null);
       } else {
-        
         alert("繳費失敗：" + data.message);
       }
     } catch (error) {
@@ -108,20 +77,8 @@ export default function PaymentSearch() {
     }
   }
 
-  useEffect(() => {
-    fetch(formUrl)
-      .then((res) => res.json())
-      .then((data) => {
-        setActivities(data); // 設定資料到 state
-      })
-      .catch((err) => console.error("載入失敗", err))
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
-
-  if (loading) return <BibleVerseLoader verses={firstSightVerses} />;
-  if (submitting) return <BibleVerseLoader verses={submittingVerses} />;
+  if (loading) return <BibleVerseLoader verses={LOADING_VERSES.INITIAL} />;
+  if (submitting) return <BibleVerseLoader verses={LOADING_VERSES.SUBMITTING} />;
 
   return (
     <>
@@ -131,20 +88,19 @@ export default function PaymentSearch() {
       <div className="max-w-xl mx-auto p-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold mb-4 text-gray-800">
-          豐生活 卓越養成計劃 報名與繳費記錄查詢
+            豐生活 卓越養成計劃 報名與繳費記錄查詢
           </h1>
           <select
             className="w-1/3 p-3 border border-gray-400 rounded-lg mb-4 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
             value={handler}
             onChange={(e) => setHandler(e.target.value)}
           >
-            {hadlerConfig.map((handler) => (
-              <option key={handler} value={handler}>
-                {handler}
-              </option>
+            {HABITS_HANDLERS.map((h) => (
+              <option key={h} value={h}>{h}</option>
             ))}
           </select>
         </div>
+
         <input
           type="text"
           className="w-full p-3 border border-gray-400 rounded-lg mb-4 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-500"
@@ -156,22 +112,17 @@ export default function PaymentSearch() {
         <div className="min-h-[120px] space-y-2">
           {filtered.map((person) => (
             <div
-              key={`${person.uid || person.phone || person.name}_${
-                person.activityId || ""
-              }`}
+              key={`${person.uid || person.phone || person.name}_${person.activityId || ""}`}
               className="flex justify-between items-center p-3 border rounded-lg bg-white shadow-sm hover:shadow-md transition"
             >
               <div>
                 <p className="font-medium text-gray-900">{person.name}</p>
                 <p className="text-sm text-gray-500">
-                  📱 {person.phone} ｜ 🏷️ {person.team} ｜ 📘{" "}
-                  {person.activityName}
+                  📱 {person.phone} ｜ 🏷️ {person.team} ｜ 📘 {person.activityName}
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setSelectedPerson(person);
-                }} // 顯示詳細資料
+                onClick={() => setSelectedPerson(person)}
                 className={`px-4 cursor-pointer py-1 rounded-lg text-sm ${
                   person["已繳費"]
                     ? "bg-amber-900 text-white"
@@ -188,9 +139,8 @@ export default function PaymentSearch() {
           )}
         </div>
 
-        {/* 彈出詳細資料視窗 */}
         {selectedPerson && (
-          <div className="fixed inset-0  bg-opacity-50 flex justify-center items-center z-50">
+          <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-lg max-w-4xl w-full shadow-lg relative">
               <button
                 onClick={() => setSelectedPerson(null)}
@@ -199,61 +149,44 @@ export default function PaymentSearch() {
                 X
               </button>
               <h2 className="text-2xl font-bold mb-4">
-                {selectedPerson.name} {selectedPerson.activityName} 報名資訊{" "}
+                {selectedPerson.name} {selectedPerson.activityName} 報名資訊
               </h2>
 
-              {/* 水平滾動容器 */}
               <div className="overflow-x-auto">
                 <table className="min-w-max table-auto border-collapse">
                   <thead>
                     <tr>
-                      {/* 渲染 selectedPerson 的資料 */}
                       {Object.entries(selectedPerson)
-                        .filter(([key]) => !excludedKeys.includes(key))
-                        .map(([key]) => {
-                          const formattedValue =
-                            key && !isNaN(Date.parse(key))
-                              ? formatDate(key)
-                              : key;
-                          return (
-                            <th className="px-4 py-2 border" key={`th-${key}`}>
-                              {keyMap[formattedValue as keyof typeof keyMap] ||
-                                formattedValue}
-                            </th>
-                          );
-                        })}
+                        .filter(([key]) => !(PAYMENT_EXCLUDED_KEYS as readonly string[]).includes(key))
+                        .map(([key]) => (
+                          <th className="px-4 py-2 border" key={`th-${key}`}>
+                            {formatKey(key, PAYMENT_KEY_MAP)}
+                          </th>
+                        ))}
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      {/* 渲染 selectedPerson 的資料 */}
                       {Object.entries(selectedPerson)
-                        .filter(([key]) => !excludedKeys.includes(key))
-                        .map(([key, value]) => {
-                          return (
-                            <td key={`td-${key}`} className="px-4 py-2 border">
-                              {JSON.stringify(value) || ""}
-                            </td>
-                          );
-                        })}
+                        .filter(([key]) => !(PAYMENT_EXCLUDED_KEYS as readonly string[]).includes(key))
+                        .map(([key, value]) => (
+                          <td key={`td-${key}`} className="px-4 py-2 border">
+                            {JSON.stringify(value) || ""}
+                          </td>
+                        ))}
                     </tr>
                   </tbody>
                 </table>
               </div>
-              {/* 已繳費按鈕 */}
+
               <button
                 onClick={() => markAsPaid(selectedPerson)}
-                className={`my-4 cursor-pointer block mx-auto px-4 py-2 rounded-lg 
-                        ${
-                          paidUids.has(selectedPerson.uid) ||
-                          selectedPerson["已繳費"]
-                            ? "bg-amber-900 text-white disabled:opacity-50 disabled:cursor-not-allowed" // 已繳費
-                            : "bg-blue-500 text-white hover:bg-blue-600"
-                        } // 未繳費
-                      `}
-                disabled={
+                className={`my-4 cursor-pointer block mx-auto px-4 py-2 rounded-lg ${
                   paidUids.has(selectedPerson.uid) || selectedPerson["已繳費"]
-                } // 按鈕禁用已繳費學員
+                    ? "bg-amber-900 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                }`}
+                disabled={paidUids.has(selectedPerson.uid) || !!selectedPerson["已繳費"]}
               >
                 {paidUids.has(selectedPerson.uid) || selectedPerson["已繳費"]
                   ? "學員已繳費"
