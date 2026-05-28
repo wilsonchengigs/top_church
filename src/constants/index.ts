@@ -6,7 +6,7 @@ export const API_ENDPOINTS = {
   SUBMIT:
     "https://script.google.com/macros/s/AKfycbzmQ7dcz_wT0O70HKI5WFZnrV_viVziy0Rrlq7J51FSwbwBt9mYI1V0C2URcOhCe3xZ_w/exec",
   SIXTH_SUBMIT:
-    "https://script.google.com/macros/s/AKfycbzkyg10DQolseMzmerKqvPjRZutThSKNipeBjVuCjmXRStEIupRNQXcBA17VghQhlS0fQ/exec",
+    "https://script.google.com/macros/s/AKfycbzjoG0QmEjUmS2GBp3kCfkgN1QujvS48d8nulRKNcwp1YZZuOFBHmv-v-dRXHJnDXn0Iw/exec",
   LEADERBOARD:
     "https://script.google.com/macros/s/AKfycbwFsXCKwNEDgDglJNPDtjNe8CTd-x-pScfj-VhMSBIlYUwYpC0F6g7J36_tM69Rw7Xz/exec",
 } as const;
@@ -55,6 +55,8 @@ export const SESSION_LABELS = [
   "第五次",
   "第六次",
 ] as const;
+
+export const SPECIAL_SESSIONS = [4, 5, 6] as const;
 
 export const SESSION_ROMAN = ["I", "II", "III", "IV", "V", "VI"] as const;
 

@@ -27,6 +27,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     padding: "2px 0",
   },
+  normalCol:  { backgroundColor: "#E8EDF8" },
   specialCol: { backgroundColor: "#FAF5FF" },
 };
 
@@ -51,7 +52,7 @@ export function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonR
       {[1, 2, 3, 4, 5, 6].map((session) => {
         const special = isSpecialSession(session);
         return (
-          <div key={session} style={{ ...styles.sessionCol, ...(special ? styles.specialCol : {}) }}>
+          <div key={session} style={{ ...styles.sessionCol, ...(special ? styles.specialCol : styles.normalCol) }}>
             <SessionCell
               session={session}
               status={person.sessions[session]}
