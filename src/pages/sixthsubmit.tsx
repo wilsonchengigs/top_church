@@ -5,7 +5,7 @@ import { SubmitResultBox } from "../components/attendance/SubmitResultBox";
 import { LegendBox } from "../components/attendance/LegendBox";
 import { useSearchInput } from "../hooks/useSearchInput";
 import { fetchAttendancePeople, postJson } from "../services/api";
-import { API_ENDPOINTS, SESSION_LABELS, ATTENDANCE_STATUS, SPECIAL_SESSIONS, BADGE_SIZE, COLOR_BADGE_URL } from "../constants";
+import { API_ENDPOINTS, SESSION_LABELS, ATTENDANCE_STATUS, SPECIAL_SESSIONS, COLOR_BADGE_URL } from "../constants";
 import { S } from "./sixthsubmit.styles";
 import type {
   AttendancePerson,
@@ -315,18 +315,6 @@ export default function SixthSubmitPage() {
 
         <div style={S.header}>
           <h1 style={S.title}>日日有光登記表</h1>
-          <div style={S.badgeRow}>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <img
-                key={n}
-                src={COLOR_BADGE_URL(n)}
-                alt=""
-                width={BADGE_SIZE}
-                height={BADGE_SIZE}
-                style={{ animation: `badgeLightUp 6s ${(n - 1) * 0.8}s infinite` }}
-              />
-            ))}
-          </div>
           <p style={S.subtitle}>先選擇牧區，再依小組或姓名搜尋成員</p>
         </div>
 

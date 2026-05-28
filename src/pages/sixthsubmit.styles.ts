@@ -34,12 +34,6 @@ export const S: Record<string, CSSProperties> = {
     letterSpacing: 1,
   },
   subtitle: { margin: 0, fontSize: 14, color: "#64748B" },
-  badgeRow: {
-    display: "flex",
-    justifyContent: "center",
-    gap: 10,
-    margin: "16px 0 14px",
-  },
   section: { marginBottom: 24 },
   areaHint: {
     textAlign: "center" as const,
