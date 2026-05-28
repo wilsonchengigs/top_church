@@ -21,15 +21,25 @@
 }
 
 @keyframes badgeLand {
-  from {
+  0%, 100% {
     filter: grayscale(1) brightness(0.4);
-    transform: scale(0.8) translateY(12px);
-    opacity: 0.2;
+    transform: scale(0.85) translateY(8px);
+    opacity: 0.25;
   }
-  to {
+  12% {
+    filter: grayscale(0) brightness(1);
+    transform: scale(1.1) translateY(-3px);
+    opacity: 1;
+  }
+  24% {
     filter: grayscale(0) brightness(1);
     transform: scale(1) translateY(0);
     opacity: 1;
+  }
+  38% {
+    filter: grayscale(1) brightness(0.4);
+    transform: scale(0.85) translateY(8px);
+    opacity: 0.25;
   }
 }
 

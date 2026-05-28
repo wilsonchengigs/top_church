@@ -287,13 +287,13 @@ export default function SixthSubmitPage() {
           <div style={{ display: "flex", gap: 20 }}>
             {[1, 2, 3].map((n) => (
               <img key={n} src={COLOR_BADGE_URL(n)} alt="" width={LANDING_BADGE_SIZE} height={LANDING_BADGE_SIZE}
-                style={{ animation: `badgeLand 0.6s ${(n - 1) * 0.7}s both` }} />
+                style={{ animation: `badgeLand 5.5s ${(n - 1) * 0.7}s infinite` }} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             {[4, 5, 6].map((n) => (
               <img key={n} src={COLOR_BADGE_URL(n)} alt="" width={LANDING_BADGE_SIZE} height={LANDING_BADGE_SIZE}
-                style={{ animation: `badgeLand 0.6s ${(n - 1) * 0.7}s both` }} />
+                style={{ animation: `badgeLand 5.5s ${(n - 1) * 0.7}s infinite` }} />
             ))}
           </div>
         </div>
