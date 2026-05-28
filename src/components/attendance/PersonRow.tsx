@@ -27,8 +27,8 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     padding: "2px 0",
   },
-  normalCol:  { backgroundColor: "#E8EDF8" },
-  specialCol: { backgroundColor: "#FAF5FF" },
+  normalCol:  { backgroundColor: "#C8D4E8" },
+  specialCol: { backgroundColor: "#EDE9FE" },
 };
 
 export interface PersonRowProps {
