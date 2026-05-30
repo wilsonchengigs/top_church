@@ -41,8 +41,8 @@ function BadgeCycleIcon() {
 const styles: Record<string, CSSProperties> = {
   box: {
     padding: "10px 12px",
-    backgroundColor: "#FAFAFA",
-    border: "1px solid #E2E8F0",
+    backgroundColor: "#FEF3E2",
+    border: "1px solid #FBD9AA",
     borderRadius: 10,
     width: "100%",
     boxSizing: "border-box",
@@ -50,7 +50,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: "flex-end",
   },
   col: { display: "flex", flexDirection: "column", gap: 6 },
-  title: { fontSize: 19, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.5 },
+  title: { fontSize: 19, fontWeight: 700, color: "#B45309", marginBottom: 4, letterSpacing: 0.5 },
 };
 
 export function LegendBox() {
