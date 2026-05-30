@@ -102,7 +102,6 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
           width: BADGE_SIZE,
           height: BADGE_SIZE,
           cursor: "pointer",
-          outline: isPending ? "2.5px solid #6D28D9" : "2px solid transparent",
           outlineOffset: "2px",
           transition: "outline 0.15s, opacity 0.15s",
         }}
