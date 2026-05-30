@@ -15,7 +15,6 @@ export const S: Record<string, CSSProperties> = {
     borderRadius: 20,
     boxShadow: "0 6px 32px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05)",
     padding: "8px 20px 28px",
-    overflow: "hidden",
   },
   goldAccent: {
     height: 5,
