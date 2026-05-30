@@ -86,12 +86,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
   }
 
   if (!special && status === ATTENDANCE_STATUS.NOT_REGISTERED) {
-    return (
-      <div
-        title="尚未報名"
-        style={{ width: BADGE_SIZE, height: BADGE_SIZE, borderRadius: 4, background: "#F1F5F9" }}
-      />
-    );
+    return <div style={{ width: BADGE_SIZE, height: BADGE_SIZE }} />;
   }
 
   const canToggle =
