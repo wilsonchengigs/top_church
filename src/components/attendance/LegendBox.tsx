@@ -46,6 +46,8 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 10,
     width: "100%",
     boxSizing: "border-box",
+    display: "flex",
+    justifyContent: "flex-end",
   },
   col: { display: "flex", flexDirection: "column", gap: 6 },
   title: { fontSize: 19, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.5 },
