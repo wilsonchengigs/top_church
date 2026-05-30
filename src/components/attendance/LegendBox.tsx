@@ -1,7 +1,5 @@
 import type { CSSProperties } from "react";
-import { GRAY_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
-
-const PINK_FILTER = "sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)";
+import { GRAYCOLOR_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
 
 interface LegendItemProps {
   visual: "background" | "pink" | "color" | "pending";
@@ -21,11 +19,11 @@ function LegendItem({ visual, label }: LegendItemProps) {
       return (
         <div style={{ width: size, height: size, flexShrink: 0 }}>
           <img
-            src={GRAY_BADGE_URL(1)}
+            src={GRAYCOLOR_BADGE_URL(1)}
             alt=""
             width={size}
             height={size}
-            style={{ display: "block", filter: PINK_FILTER, opacity: 0.85 }}
+            style={{ display: "block", opacity: 0.9 }}
           />
         </div>
       );
@@ -69,10 +67,8 @@ export function LegendBox() {
     <div style={styles.box}>
       <div style={styles.col}>
         <span style={styles.title}>回報辦法</span>
-        <LegendItem visual="background" label="沒報名" />
         <LegendItem visual="pink" label="未完成（可補登）" />
         <LegendItem visual="color" label="已完成" />
-        <LegendItem visual="pending" label="待送出" />
       </div>
     </div>
   );

@@ -4,7 +4,12 @@
       "Bash(npm run *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(wait)",
+      "Bash(npm --prefix /Users/wilsoncheng/Desktop/top_church_frondend run build)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"TSC EXIT:$?\")"
     ]
   }
 }

@@ -1,12 +1,11 @@
-import { useEffect, useState, useMemo, CSSProperties } from "react";
-import DinoGame from "../components/game/DinoGame";
+import { useEffect, useState, useMemo, useRef, CSSProperties } from "react";
 import { Dropdown } from "../components/shared/Dropdown";
 import { PersonRow } from "../components/attendance/PersonRow";
 import { SubmitResultBox } from "../components/attendance/SubmitResultBox";
 import { LegendBox } from "../components/attendance/LegendBox";
 import { useSearchInput } from "../hooks/useSearchInput";
 import { fetchAttendancePeople, postJson } from "../services/api";
-import { API_ENDPOINTS, SESSION_LABELS, ATTENDANCE_STATUS } from "../constants";
+import { API_ENDPOINTS, SESSION_LABELS, ATTENDANCE_STATUS, COLOR_BADGE_URL } from "../constants";
 import { S } from "./sixthsubmit.styles";
 import type {
   AttendancePerson,
@@ -17,12 +16,71 @@ import type {
 
 const isSpecialSession = (s: number) => s >= 4;
 
+function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () => void }) {
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const onEnterRef = useRef(onEnter);
+  useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
+
+  useEffect(() => {
+    if (!onLoaded) return;
+    setActiveIdx(0);
+    let current = 0;
+    const id = setInterval(() => {
+      current += 1;
+      if (current >= 6) {
+        clearInterval(id);
+        setTimeout(() => onEnterRef.current(), 400);
+      } else {
+        setActiveIdx(current);
+      }
+    }, 600);
+    return () => clearInterval(id);
+  }, [onLoaded]);
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 32,
+      backgroundColor: "#F5F3EE",
+      fontFamily: "'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
+    }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1E3A5F", margin: 0 }}>
+        1189日日有光回報表
+      </h1>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, justifyItems: "center" }}>
+        {[1, 2, 3, 4, 5, 6].map((session, i) => (
+          <img
+            key={session}
+            src={COLOR_BADGE_URL(session)}
+            width={80}
+            height={80}
+            alt=""
+            style={{
+              opacity: activeIdx === i ? 1 : activeIdx > i ? 0.5 : 0.15,
+              transform: activeIdx === i ? "scale(1.15)" : "scale(1)",
+              transition: "opacity 0.35s, transform 0.35s",
+            }}
+          />
+        ))}
+      </div>
+      {!onLoaded && (
+        <p style={{ margin: 0, fontSize: 13, color: "#94A3B8", fontWeight: 600 }}>
+          載入資料中，請稍候...
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AttendanceApp() {
   const [allPeople, setAllPeople] = useState<AttendancePerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameVisible, setGameVisible] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [legendOpen, setLegendOpen] = useState(false);
 
   const [selectedArea, setSelectedArea] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
@@ -195,7 +253,7 @@ export default function AttendanceApp() {
   };
 
   if (gameVisible)
-    return <DinoGame onLoaded={!loading || fetchError} onEnter={() => setGameVisible(false)} />;
+    return <BadgeLanding onLoaded={!loading || fetchError} onEnter={() => setGameVisible(false)} />;
 
   if (fetchError)
     return (
@@ -318,18 +376,13 @@ export default function AttendanceApp() {
                 <label style={{ ...S.label, marginBottom: 0 }}>
                   {mode === "name" ? `「${selectedName}」出席狀況` : `${selectedArea} — ${selectedGroup}`}
                 </label>
-                <button style={S.legendToggle} onClick={() => setLegendOpen((v) => !v)}>
-                  {legendOpen ? "收起圖例 ▲" : "查看圖例 ▼"}
-                </button>
               </div>
 
-              {legendOpen && <LegendBox />}
+              <LegendBox />
 
               {/* 表格標題 */}
               <div style={S.tableHeader}>
                 <div style={S.nameCol} />
-                <div style={S.sessionGroupLabel}>1189</div>
-                <div style={{ ...S.sessionGroupLabel, ...S.specialGroupLabel }}>日日有光</div>
               </div>
               <div style={S.tableSubHeader}>
                 <div style={S.nameCol} />

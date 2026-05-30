@@ -69,6 +69,9 @@ export const BADGE_SIZE = 40;
 export const GRAY_BADGE_URL = (n: number): string =>
   `/topchurch_grayscale_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_grayscale.svg`;
 
+export const GRAYCOLOR_BADGE_URL = (n: number): string =>
+  `/topchurch_graycolor_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_color.svg`;
+
 export const COLOR_BADGE_URL = (n: number): string =>
   `/topchurch_color_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_color.svg`;
 

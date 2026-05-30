@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
 import type { AttendancePerson, PendingChecks } from "../../types";
-import { ATTENDANCE_STATUS, BADGE_SIZE, GRAY_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
+import { ATTENDANCE_STATUS, BADGE_SIZE, GRAYCOLOR_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
 
 const isSpecialSession = (s: number) => s >= 4;
+
+const cycleColorBadge = (session: number) => COLOR_BADGE_URL(((session - 1) % 3) + 1);
 
 const styles: Record<string, CSSProperties> = {
   row: {
@@ -29,10 +31,6 @@ const styles: Record<string, CSSProperties> = {
   },
   specialCol: { backgroundColor: "#FAF5FF" },
 };
-
-const PINK_FILTER = "sepia(1) hue-rotate(290deg) saturate(4) brightness(1.1)";
-
-const cycleColorBadge = (session: number) => COLOR_BADGE_URL(((session - 1) % 3) + 1);
 
 export interface PersonRowProps {
   person: AttendancePerson;
@@ -115,15 +113,11 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         }}
       >
         <img
-          src={isPending ? cycleColorBadge(session) : GRAY_BADGE_URL(session)}
+          src={isPending ? cycleColorBadge(session) : GRAYCOLOR_BADGE_URL(session)}
           alt=""
           width={BADGE_SIZE}
           height={BADGE_SIZE}
-          style={{
-            display: "block",
-            opacity: isPending ? 1 : 0.85,
-            filter: isPending ? "none" : PINK_FILTER,
-          }}
+          style={{ display: "block", opacity: isPending ? 1 : 0.9 }}
         />
       </div>
     );
