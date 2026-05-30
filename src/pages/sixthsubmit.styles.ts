@@ -23,7 +23,6 @@ export const S: Record<string, CSSProperties> = {
   },
   header: {
     marginBottom: 28,
-    paddingBottom: 18,
     borderBottom: "1.5px solid #E2E8F0",
   },
   title: {
