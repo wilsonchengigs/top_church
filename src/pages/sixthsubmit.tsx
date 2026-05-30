@@ -160,20 +160,20 @@ export default function AttendanceApp() {
     if (!hasWork)
       return { background: "linear-gradient(135deg, #A8B0BC 0%, #6B7280 100%)", opacity: 0.45, boxShadow: "none", transform: "scale(1)", color: "#fff" };
     const t = Math.min(pendingCount / 8, 1);
-    const r1 = Math.round(156 + (212 - 156) * t);
-    const g1 = Math.round(163 + (160 - 163) * t);
-    const b1 = Math.round(175 + (23 - 175) * t);
-    const r2 = Math.round(100 + (184 - 100) * t);
-    const g2 = Math.round(116 + (134 - 116) * t);
-    const b2 = Math.round(139 + (11 - 139) * t);
-    const shadowAlpha = 0.18 + t * 0.42;
+    const r1 = Math.round(168 + (245 - 168) * t);
+    const g1 = Math.round(176 + (158 - 176) * t);
+    const b1 = Math.round(185 + (11 - 185) * t);
+    const r2 = Math.round(107 + (200 - 107) * t);
+    const g2 = Math.round(114 + (134 - 114) * t);
+    const b2 = Math.round(128 + (10 - 128) * t);
+    const shadowAlpha = 0.15 + t * 0.35;
     const shadowSpread = Math.round(8 + t * 20);
     return {
       background: `linear-gradient(135deg, rgb(${r1},${g1},${b1}) 0%, rgb(${r2},${g2},${b2}) 100%)`,
       opacity: 1,
-      boxShadow: `0 ${shadowSpread / 2}px ${shadowSpread}px rgba(${r1},${Math.round(g1 * 0.65)},0,${shadowAlpha}), 0 2px 6px rgba(0,0,0,0.08)`,
+      boxShadow: `0 ${shadowSpread / 2}px ${shadowSpread}px rgba(200,120,0,${shadowAlpha}), 0 2px 6px rgba(0,0,0,0.08)`,
       transform: pendingCount > 4 ? "scale(1.01)" : "scale(1)",
-      color: t > 0.45 ? "#1A1000" : "#fff",
+      color: t > 0.45 ? "#1A0A00" : "#fff",
     };
   }, [pendingCount, note]);
 
