@@ -3,17 +3,17 @@ import { GRAYCOLOR_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
 
 const SPIN_KEYFRAMES = `
 @keyframes badgeCycle {
-  0%    { opacity: 1; }
-  14%   { opacity: 1; }
-  16%   { opacity: 0; }
-  100%  { opacity: 0; }
+  0%       { opacity: 1; }
+  16.6%    { opacity: 1; }
+  16.61%   { opacity: 0; }
+  100%     { opacity: 0; }
 }`;
 
 const size = 24;
 
 function BadgeCycleIcon() {
   const badges = [1, 2, 3, 4, 5, 6];
-  const duration = 3; // seconds per full cycle
+  const duration = 0.6; // seconds per badge
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <style>{SPIN_KEYFRAMES}</style>
@@ -40,10 +40,7 @@ function BadgeCycleIcon() {
 
 const styles: Record<string, CSSProperties> = {
   box: {
-    padding: "10px 12px",
-    backgroundColor: "#FAFAFA",
-    border: "1px solid #E2E8F0",
-    borderRadius: 10,
+    padding: 0,
   },
   col: { display: "flex", flexDirection: "column", gap: 6 },
   title: { fontSize: 13, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.5 },

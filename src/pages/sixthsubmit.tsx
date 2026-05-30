@@ -280,7 +280,6 @@ export default function AttendanceApp() {
         <div style={S.card}>
           <div style={S.header}>
             <h1 style={S.title}>1189日日有光｜線上回報</h1>
-            <p style={S.subtitle}>請先選擇牧區，依小組編號查詢；或直接搜尋個人姓名</p>
           </div>
 
           {/* 牧區 */}
@@ -299,7 +298,7 @@ export default function AttendanceApp() {
           {/* OR divider */}
           <div style={S.orDivider}>
             <span style={S.orLine} />
-            <span style={S.orText}>依小組編號 或 直接搜尋姓名</span>
+            <span style={S.orText}>請先選擇牧區，再依 小組編號 或 直接輸入個人姓名 搜尋</span>
             <span style={S.orLine} />
           </div>
 
@@ -378,7 +377,7 @@ export default function AttendanceApp() {
           {/* 出席表 */}
           {showTable && (
             <div style={S.section}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, marginBottom: 12, padding: "10px 12px", backgroundColor: "#FAFAFA", border: "1px solid #E2E8F0", borderRadius: 10 }}>
                 <label style={{ ...S.label, marginBottom: 0, flex: 1 }}>
                   {mode === "name" ? `「${selectedName}」出席狀況` : `${selectedArea} — ${selectedGroup}`}
                 </label>
