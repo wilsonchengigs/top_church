@@ -106,10 +106,18 @@ export default function AttendanceApp() {
       .finally(() => setLoading(false));
   }, []);
 
-  const areas = useMemo(
-    () => [...new Set(allPeople.map((p) => p.area))].sort(),
-    [allPeople]
-  );
+  const AREA_ORDER = ["卓越", "飛鷹", "使徒", "青年", "無牧區", "卓越豐盛生命行道會"];
+  const areas = useMemo(() => {
+    const unique = [...new Set(allPeople.map((p) => p.area))];
+    return unique.sort((a, b) => {
+      const ia = AREA_ORDER.indexOf(a);
+      const ib = AREA_ORDER.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [allPeople]);
 
   const groups = useMemo(() => {
     if (!selectedArea) return [];
