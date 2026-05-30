@@ -380,7 +380,7 @@ export default function AttendanceApp() {
           {/* 出席表 */}
           {showTable && (
             <div style={S.section}>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <div style={{ marginBottom: 8 }}>
                 <LegendBox />
               </div>
               <label style={{ ...S.label, marginBottom: 8 }}>
