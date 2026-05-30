@@ -380,12 +380,12 @@ export default function AttendanceApp() {
           {/* 出席表 */}
           {showTable && (
             <div style={S.section}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, marginBottom: 12, padding: "10px 12px", backgroundColor: "#FAFAFA", border: "1px solid #E2E8F0", borderRadius: 10 }}>
-                <label style={{ ...S.label, marginBottom: 0, flex: 1 }}>
-                  {mode === "name" ? nameGroupLabel : `${selectedArea} — ${selectedGroup}`}
-                </label>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                 <LegendBox />
               </div>
+              <label style={{ ...S.label, marginBottom: 8 }}>
+                {mode === "name" ? nameGroupLabel : `${selectedArea} — ${selectedGroup}`}
+              </label>
 
               {/* 表格標題 */}
               <div style={S.tableHeader}>

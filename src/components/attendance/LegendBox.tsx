@@ -40,10 +40,13 @@ function BadgeCycleIcon() {
 
 const styles: Record<string, CSSProperties> = {
   box: {
-    padding: 0,
+    padding: "10px 12px",
+    backgroundColor: "#FAFAFA",
+    border: "1px solid #E2E8F0",
+    borderRadius: 10,
   },
   col: { display: "flex", flexDirection: "column", gap: 6 },
-  title: { fontSize: 13, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.5 },
+  title: { fontSize: 19, fontWeight: 700, color: "#7C3AED", marginBottom: 4, letterSpacing: 0.5 },
 };
 
 export function LegendBox() {
