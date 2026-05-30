@@ -128,13 +128,16 @@ export default function AttendanceApp() {
     return allPeople.filter((p) => p.area === selectedArea && p.group === selectedGroup);
   }, [allPeople, selectedArea, selectedGroup]);
 
-  const namePeople = useMemo(
-    () => (selectedName ? allPeople.filter((p) => p.name === selectedName) : []),
-    [allPeople, selectedName]
-  );
+  const namePeople = useMemo(() => {
+    if (!selectedName) return [];
+    const found = allPeople.find((p) => p.name === selectedName);
+    if (!found) return [];
+    return allPeople.filter((p) => p.area === found.area && p.group === found.group);
+  }, [allPeople, selectedName]);
 
   const people = selectedName ? namePeople : groupPeople;
   const mode = selectedName ? "name" : "group";
+  const nameGroupLabel = namePeople[0] ? `${namePeople[0].area} — ${namePeople[0].group}（${selectedName}）` : selectedName;
 
   const specialProgress = useMemo(() => {
     if (people.length === 0) return 0;
@@ -379,7 +382,7 @@ export default function AttendanceApp() {
             <div style={S.section}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, marginBottom: 12, padding: "10px 12px", backgroundColor: "#FAFAFA", border: "1px solid #E2E8F0", borderRadius: 10 }}>
                 <label style={{ ...S.label, marginBottom: 0, flex: 1 }}>
-                  {mode === "name" ? `「${selectedName}」出席狀況` : `${selectedArea} — ${selectedGroup}`}
+                  {mode === "name" ? nameGroupLabel : `${selectedArea} — ${selectedGroup}`}
                 </label>
                 <LegendBox />
               </div>
