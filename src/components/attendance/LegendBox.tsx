@@ -55,7 +55,7 @@ export function LegendBox() {
           <div style={{ width: size, height: size, flexShrink: 0 }}>
             <img src={GRAYCOLOR_BADGE_URL(1)} alt="" width={size} height={size} style={{ display: "block", opacity: 0.9 }} />
           </div>
-          <span>未完成（可補登）</span>
+          <span>未完成</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#374151" }}>
           <BadgeCycleIcon />
