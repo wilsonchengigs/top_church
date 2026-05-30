@@ -50,7 +50,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: "flex-end",
   },
   col: { display: "flex", flexDirection: "column", gap: 6 },
-  title: { fontSize: 19, fontWeight: 700, color: "#B45309", marginBottom: 4, letterSpacing: 0.5 },
+  title: { fontSize: 25, fontWeight: 700, color: "#B45309", marginBottom: 4, letterSpacing: 0.5 },
 };
 
 export function LegendBox() {
