@@ -17,24 +17,30 @@ import type {
 const isSpecialSession = (s: number) => s >= 4;
 
 function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () => void }) {
-  const [activeIdx, setActiveIdx] = useState(-1);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const animDoneRef = useRef(false);
   const onEnterRef = useRef(onEnter);
+  const onLoadedRef = useRef(onLoaded);
   useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
+  useEffect(() => { onLoadedRef.current = onLoaded; }, [onLoaded]);
 
   useEffect(() => {
-    if (!onLoaded) return;
-    setActiveIdx(0);
     let current = 0;
     const id = setInterval(() => {
       current += 1;
       if (current >= 6) {
         clearInterval(id);
-        setTimeout(() => onEnterRef.current(), 400);
+        animDoneRef.current = true;
+        if (onLoadedRef.current) setTimeout(() => onEnterRef.current(), 300);
       } else {
         setActiveIdx(current);
       }
-    }, 600);
+    }, 400);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (onLoaded && animDoneRef.current) onEnterRef.current();
   }, [onLoaded]);
 
   return (
@@ -62,7 +68,7 @@ function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () =>
             style={{
               opacity: activeIdx === i ? 1 : activeIdx > i ? 0.5 : 0.15,
               transform: activeIdx === i ? "scale(1.15)" : "scale(1)",
-              transition: "opacity 0.35s, transform 0.35s",
+              transition: "opacity 0.2s, transform 0.2s",
             }}
           />
         ))}
@@ -275,7 +281,7 @@ export default function AttendanceApp() {
         <div style={S.card}>
           <div style={S.header}>
             <h1 style={S.title}>1189日日有光回報表</h1>
-            <p style={S.subtitle}>可依小組查詢，或直接搜尋個人姓名</p>
+            <p style={S.subtitle}>請先選擇牧區，依小組編號查詢；或直接搜尋個人姓名</p>
           </div>
 
           {/* 牧區 */}
@@ -291,14 +297,21 @@ export default function AttendanceApp() {
             </select>
           </div>
 
-          {/* 小組 Autocomplete */}
+          {/* OR divider */}
+          <div style={S.orDivider}>
+            <span style={S.orLine} />
+            <span style={S.orText}>依小組編號 或 直接搜尋姓名</span>
+            <span style={S.orLine} />
+          </div>
+
+          {/* 小組編號 Autocomplete */}
           <div style={S.section}>
-            <label style={S.label}>小組（輸入搜尋）</label>
+            <label style={S.label}>小組編號（輸入搜尋）</label>
             <div ref={groupSearch.ref} style={{ position: "relative" }}>
               <input
                 style={{ ...S.textInput, opacity: !selectedArea ? 0.45 : 1 }}
                 disabled={!selectedArea}
-                placeholder={selectedArea ? "輸入小組名稱..." : "請先選擇牧區"}
+                placeholder={selectedArea ? "輸入小組編號..." : "請先選擇牧區"}
                 value={groupSearch.query}
                 onChange={(e) => {
                   groupSearch.setQuery(e.target.value);
@@ -326,13 +339,6 @@ export default function AttendanceApp() {
                 />
               )}
             </div>
-          </div>
-
-          {/* OR divider */}
-          <div style={S.orDivider}>
-            <span style={S.orLine} />
-            <span style={S.orText}>或直接搜尋姓名</span>
-            <span style={S.orLine} />
           </div>
 
           {/* 個人搜尋 */}
@@ -372,13 +378,12 @@ export default function AttendanceApp() {
           {/* 出席表 */}
           {showTable && (
             <div style={S.section}>
-              <div style={S.tableHeadingRow}>
-                <label style={{ ...S.label, marginBottom: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                <label style={{ ...S.label, marginBottom: 0, flex: 1 }}>
                   {mode === "name" ? `「${selectedName}」出席狀況` : `${selectedArea} — ${selectedGroup}`}
                 </label>
+                <LegendBox />
               </div>
-
-              <LegendBox />
 
               {/* 表格標題 */}
               <div style={S.tableHeader}>

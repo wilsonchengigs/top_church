@@ -126,7 +126,7 @@ export const S: Record<string, CSSProperties> = {
     fontSize: 14,
   },
   sessionCol: { flex: 1 },
-  specialColHeader: { backgroundColor: "#F5F3FF" },
+  specialColHeader: {},
   tableBody: {
     maxHeight: 480,
     overflowY: "auto",

@@ -4,7 +4,6 @@ import { ATTENDANCE_STATUS, BADGE_SIZE, GRAYCOLOR_BADGE_URL, COLOR_BADGE_URL } f
 
 const isSpecialSession = (s: number) => s >= 4;
 
-const cycleColorBadge = (session: number) => COLOR_BADGE_URL(((session - 1) % 3) + 1);
 
 const styles: Record<string, CSSProperties> = {
   row: {
@@ -29,7 +28,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     padding: "2px 0",
   },
-  specialCol: { backgroundColor: "#FAF5FF" },
+  specialCol: {},
 };
 
 export interface PersonRowProps {
@@ -80,7 +79,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
   if (status === ATTENDANCE_STATUS.CHECKED) {
     return (
       <div title="已完成" style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed" }}>
-        <img src={cycleColorBadge(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
+        <img src={COLOR_BADGE_URL(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
       </div>
     );
   }
@@ -107,7 +106,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         }}
       >
         <img
-          src={isPending ? cycleColorBadge(session) : GRAYCOLOR_BADGE_URL(session)}
+          src={isPending ? COLOR_BADGE_URL(session) : GRAYCOLOR_BADGE_URL(session)}
           alt=""
           width={BADGE_SIZE}
           height={BADGE_SIZE}
