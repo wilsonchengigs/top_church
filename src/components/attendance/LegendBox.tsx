@@ -41,8 +41,8 @@ function BadgeCycleIcon() {
 const styles: Record<string, CSSProperties> = {
   box: {
     padding: "10px 12px",
-    backgroundColor: "#FEF3E2",
-    border: "1px solid #FBD9AA",
+    backgroundColor: "#FAFAFA",
+    border: "1px solid #E2E8F0",
     borderRadius: 10,
     width: "100%",
     boxSizing: "border-box",
