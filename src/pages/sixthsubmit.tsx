@@ -307,7 +307,7 @@ export default function AttendanceApp() {
 
           {/* 小組編號 Autocomplete */}
           <div style={S.section}>
-            <label style={S.label}>小組編號（輸入搜尋）</label>
+            <label style={S.label}>小組編號</label>
             <div ref={groupSearch.ref} style={{ position: "relative" }}>
               <input
                 style={{ ...S.textInput, opacity: !selectedArea ? 0.45 : 1 }}
