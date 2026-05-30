@@ -18,7 +18,7 @@ const isSpecialSession = (s: number) => s >= 4;
 
 function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () => void }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const animDoneRef = useRef(false);
+  const cycledRef = useRef(false);
   const onEnterRef = useRef(onEnter);
   const onLoadedRef = useRef(onLoaded);
   useEffect(() => { onEnterRef.current = onEnter; }, [onEnter]);
@@ -27,20 +27,19 @@ function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () =>
   useEffect(() => {
     let current = 0;
     const id = setInterval(() => {
-      current += 1;
-      if (current >= 6) {
+      current = (current + 1) % 6;
+      setActiveIdx(current);
+      if (current === 5) cycledRef.current = true;
+      if (cycledRef.current && onLoadedRef.current) {
         clearInterval(id);
-        animDoneRef.current = true;
-        if (onLoadedRef.current) setTimeout(() => onEnterRef.current(), 300);
-      } else {
-        setActiveIdx(current);
+        setTimeout(() => onEnterRef.current(), 300);
       }
     }, 400);
     return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    if (onLoaded && animDoneRef.current) onEnterRef.current();
+    if (onLoaded && cycledRef.current) onEnterRef.current();
   }, [onLoaded]);
 
   return (
@@ -55,7 +54,7 @@ function BadgeLanding({ onLoaded, onEnter }: { onLoaded: boolean; onEnter: () =>
       fontFamily: "'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
     }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1E3A5F", margin: 0 }}>
-        1189日日有光回報表
+        1189日日有光｜線上回報
       </h1>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, justifyItems: "center" }}>
         {[1, 2, 3, 4, 5, 6].map((session, i) => (
@@ -280,7 +279,7 @@ export default function AttendanceApp() {
       <div style={S.container}>
         <div style={S.card}>
           <div style={S.header}>
-            <h1 style={S.title}>1189日日有光回報表</h1>
+            <h1 style={S.title}>1189日日有光｜線上回報</h1>
             <p style={S.subtitle}>請先選擇牧區，依小組編號查詢；或直接搜尋個人姓名</p>
           </div>
 
@@ -346,8 +345,9 @@ export default function AttendanceApp() {
             <label style={S.label}>個人搜尋</label>
             <div ref={nameSearch.ref} style={{ position: "relative" }}>
               <input
-                style={S.textInput}
-                placeholder="輸入姓名..."
+                style={{ ...S.textInput, opacity: !selectedArea ? 0.45 : 1 }}
+                disabled={!selectedArea}
+                placeholder={selectedArea ? "輸入姓名..." : "請先選擇牧區"}
                 value={nameSearch.query}
                 onChange={(e) => {
                   nameSearch.setQuery(e.target.value);
