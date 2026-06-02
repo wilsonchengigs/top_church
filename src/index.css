@@ -46,3 +46,9 @@
 @keyframes landingFadeOut {
   to { opacity: 0; pointer-events: none; }
 }
+
+*:focus,
+*:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

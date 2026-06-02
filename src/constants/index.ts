@@ -68,8 +68,8 @@ export const ATTENDANCE_STATUS = {
 
 export const BADGE_SIZE = 40;
 
-export const GRAY_BADGE_URL = (n: number): string =>
-  `/topchurch_grayscale_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_grayscale.svg`;
+export const PINK_BADGE_URL = (n: number): string =>
+  `/topchurch_pink_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_pink.svg`;
 
 export const COLOR_BADGE_URL = (n: number): string =>
   `/topchurch_color_svg_badges/topchurch_badge_${SESSION_ROMAN[n - 1]}_color.svg`;

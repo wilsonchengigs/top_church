@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { AttendancePerson, PendingChecks } from "../../types";
-import { ATTENDANCE_STATUS, BADGE_SIZE, GRAY_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
+import { ATTENDANCE_STATUS, BADGE_SIZE, PINK_BADGE_URL, COLOR_BADGE_URL } from "../../constants";
 
 const isSpecialSession = (s: number) => s >= 4;
 
@@ -90,7 +90,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         title="尚未報名，不可補登"
         style={{ width: BADGE_SIZE, height: BADGE_SIZE, cursor: "not-allowed", opacity: 0.3 }}
       >
-        <img src={GRAY_BADGE_URL(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
+        <img src={PINK_BADGE_URL(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} style={{ display: "block" }} />
       </div>
     );
   }
@@ -115,7 +115,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
         }}
       >
         <img
-          src={isPending ? COLOR_BADGE_URL(session) : GRAY_BADGE_URL(session)}
+          src={isPending ? COLOR_BADGE_URL(session) : PINK_BADGE_URL(session)}
           alt=""
           width={BADGE_SIZE}
           height={BADGE_SIZE}
