@@ -89,6 +89,6 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
   }
 
   return (
-    <div style={{ width: BADGE_SIZE, height: BADGE_SIZE }} className="rounded bg-gray-200" />
+    <div style={{ width: BADGE_SIZE, height: BADGE_SIZE }} className="rounded" />
   );
 }
