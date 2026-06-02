@@ -11,6 +11,9 @@ export interface PersonRowProps {
 }
 
 export function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonRowProps) {
+  // Session 4 registered implies sessions 5 & 6 are also registered
+  const registeredForSpecial = person.sessions[4] !== ATTENDANCE_STATUS.NOT_REGISTERED;
+
   return (
     <div className="flex items-center px-2 py-2 border-b border-slate-100">
       <div className="flex-none w-[65px] font-semibold text-slate-900 text-sm overflow-hidden text-ellipsis whitespace-nowrap">
@@ -28,6 +31,7 @@ export function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonR
             status={person.sessions[session]}
             isPending={!!pendingChecks[`${person.name}_${session}`]}
             onClick={() => onToggle(person.name, session)}
+            registeredForSpecial={registeredForSpecial}
           />
         </div>
       ))}
@@ -40,9 +44,10 @@ interface SessionCellProps {
   status: string;
   isPending: boolean;
   onClick: () => void;
+  registeredForSpecial: boolean;
 }
 
-function SessionCell({ session, status, isPending, onClick }: SessionCellProps) {
+function SessionCell({ session, status, isPending, onClick, registeredForSpecial }: SessionCellProps) {
   const special = isSpecialSession(session);
 
   if (status === ATTENDANCE_STATUS.CHECKED) {
@@ -66,10 +71,10 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
     );
   }
 
-  // Sessions 4–6 only: can toggle CROSSED or NOT_REGISTERED
+  // Sessions 4–6: clickable if CROSSED, or NOT_REGISTERED but registered for session 4
   const canToggle =
     status === ATTENDANCE_STATUS.CROSSED ||
-    status === ATTENDANCE_STATUS.NOT_REGISTERED;
+    (status === ATTENDANCE_STATUS.NOT_REGISTERED && registeredForSpecial);
 
   if (canToggle) {
     return (
