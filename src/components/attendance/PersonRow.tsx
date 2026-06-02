@@ -109,9 +109,7 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
           height: BADGE_SIZE,
           cursor: "pointer",
           borderRadius: "50%",
-          outline: isPending ? "2.5px solid #6D28D9" : "2px solid transparent",
-          outlineOffset: "2px",
-          transition: "outline 0.15s, opacity 0.15s",
+          transition: "opacity 0.15s",
         }}
       >
         <img
