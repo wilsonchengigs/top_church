@@ -53,28 +53,30 @@ function SessionCell({ session, status, isPending, onClick }: SessionCellProps) 
     );
   }
 
-  if (!special && status === ATTENDANCE_STATUS.NOT_REGISTERED) {
+  // Sessions 1–3: view-only, no interaction allowed
+  if (!special) {
     return (
       <div
-        title="尚未報名，不可補登"
+        title={status === ATTENDANCE_STATUS.NOT_REGISTERED ? "尚未報名" : "回報已截止"}
         style={{ width: BADGE_SIZE, height: BADGE_SIZE }}
-        className="cursor-not-allowed opacity-30"
+        className={`cursor-not-allowed ${status === ATTENDANCE_STATUS.NOT_REGISTERED ? "opacity-30" : "opacity-50"}`}
       >
         <img src={PINK_BADGE_URL(session)} alt="" width={BADGE_SIZE} height={BADGE_SIZE} className="block" />
       </div>
     );
   }
 
+  // Sessions 4–6 only: can toggle CROSSED or NOT_REGISTERED
   const canToggle =
     status === ATTENDANCE_STATUS.CROSSED ||
-    (special && status === ATTENDANCE_STATUS.NOT_REGISTERED);
+    status === ATTENDANCE_STATUS.NOT_REGISTERED;
 
   if (canToggle) {
     return (
       <div
         onClick={onClick}
         title={isPending ? "點擊取消" : "點擊補登記為完成"}
-        style={{ width: BADGE_SIZE, height: BADGE_SIZE, opacity: isPending ? 1 : special ? 0.65 : 0.55 }}
+        style={{ width: BADGE_SIZE, height: BADGE_SIZE, opacity: isPending ? 1 : 0.65 }}
         className="cursor-pointer rounded-full transition-opacity duration-150"
       >
         <img
