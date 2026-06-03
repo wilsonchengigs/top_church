@@ -11,8 +11,10 @@ export interface PersonRowProps {
 }
 
 export function PersonRow({ person, pendingChecks, onToggle, showArea }: PersonRowProps) {
-  // Session 4 registered implies sessions 5 & 6 are also registered
-  const registeredForSpecial = person.sessions[4] !== ATTENDANCE_STATUS.NOT_REGISTERED;
+  // Session 4 registered (CHECKED or CROSSED) implies sessions 5 & 6 are also registered
+  const registeredForSpecial =
+    person.sessions[4] === ATTENDANCE_STATUS.CHECKED ||
+    person.sessions[4] === ATTENDANCE_STATUS.CROSSED;
 
   return (
     <div className="flex items-center px-2 py-2 border-b border-slate-100">
@@ -71,10 +73,10 @@ function SessionCell({ session, status, isPending, onClick, registeredForSpecial
     );
   }
 
-  // Sessions 4–6: clickable if CROSSED, or NOT_REGISTERED but registered for session 4
+  // Sessions 4–6: clickable if not yet completed AND (has a cross mark, or session 4 is registered)
   const canToggle =
-    status === ATTENDANCE_STATUS.CROSSED ||
-    (status === ATTENDANCE_STATUS.NOT_REGISTERED && registeredForSpecial);
+    status !== ATTENDANCE_STATUS.CHECKED &&
+    (status === ATTENDANCE_STATUS.CROSSED || registeredForSpecial);
 
   if (canToggle) {
     return (
