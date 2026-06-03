@@ -415,13 +415,9 @@ export default function AttendanceApp() {
                 {[1, 2, 3, 4, 5, 6].map((s) => (
                   <div
                     key={s}
-                    style={{
-                      ...S.sessionCol,
-                      ...(isSpecialSession(s) ? S.specialColHeader : {}),
-                      fontWeight: 600,
-                      fontSize: 10,
-                      color: isSpecialSession(s) ? "#7C3AED" : "#475569",
-                    }}
+                    className={`flex-1 font-semibold text-[10px] text-center ${
+                      isSpecialSession(s) ? "text-amber-700" : "text-slate-500"
+                    }`}
                   >
                     {SESSION_LABELS[s - 1]}
                   </div>
