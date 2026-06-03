@@ -6,7 +6,7 @@ export const API_ENDPOINTS = {
   SUBMIT:
     "https://script.google.com/macros/s/AKfycbzmQ7dcz_wT0O70HKI5WFZnrV_viVziy0Rrlq7J51FSwbwBt9mYI1V0C2URcOhCe3xZ_w/exec",
   SIXTH_SUBMIT:
-    "https://script.google.com/macros/s/AKfycby-mqLXHznwVT4vSjnCaRw3c6neHtKYFaD6oN0mwqHddQdIHUHCZqBaBNMTy8EQmAQ/exec",
+    "https://script.google.com/macros/s/AKfycbz46nBNRh2ytX63xYT7LkblYCITjRFNC1_VctDPW8RNbXaoXDiVUQO3-wKixLFNy_9iLg/exec",
   LEADERBOARD:
     "https://script.google.com/macros/s/AKfycbwFsXCKwNEDgDglJNPDtjNe8CTd-x-pScfj-VhMSBIlYUwYpC0F6g7J36_tM69Rw7Xz/exec",
 } as const;
