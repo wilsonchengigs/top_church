@@ -101,6 +101,7 @@ export default function AttendanceApp() {
 
   useEffect(() => {
     fetchAttendancePeople(API_ENDPOINTS.SIXTH_SUBMIT)
+      .then((people) => people.map((p) => ({ ...p, area: p.area === "無" ? "無牧區" : p.area })))
       .then(setAllPeople)
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
@@ -150,22 +151,16 @@ export default function AttendanceApp() {
   const specialProgress = useMemo(() => {
     if (people.length === 0) return 0;
     let done = 0;
-    let notDone = 0;
     for (const p of people) {
-      const registeredForSpecial = p.sessions[4] !== ATTENDANCE_STATUS.NOT_REGISTERED;
       for (const s of [4, 5, 6]) {
         const status = p.sessions[s];
         const isPending = !!pendingChecks[`${p.name}_${s}`];
         if (status === ATTENDANCE_STATUS.CHECKED || isPending) {
           done++;
-        } else if (status === ATTENDANCE_STATUS.CROSSED || (status === ATTENDANCE_STATUS.NOT_REGISTERED && registeredForSpecial)) {
-          notDone++;
         }
-        // NOT_REGISTERED and not registered for special: excluded
       }
     }
-    const total = done + notDone;
-    return total === 0 ? 0 : Math.round((notDone / total) * 100);
+    return Math.round((done / (people.length * 3)) * 100);
   }, [people, pendingChecks]);
 
   const pendingCount = useMemo(
@@ -296,7 +291,13 @@ export default function AttendanceApp() {
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 480px) {
+          .or-hint-text { white-space: normal !important; text-align: center; }
+          .or-hint-line { display: none !important; }
+        }
+      `}</style>
       <div style={S.container}>
         <div style={S.card}>
           <div style={S.header}>
@@ -318,9 +319,9 @@ export default function AttendanceApp() {
 
           {/* OR divider */}
           <div style={S.orDivider}>
-            <span style={S.orLine} />
-            <span style={S.orText}>請先選擇牧區，再依 小組編號 或 直接輸入個人姓名 搜尋</span>
-            <span style={S.orLine} />
+            <span className="or-hint-line" style={S.orLine} />
+            <span className="or-hint-text" style={S.orText}>請先選擇牧區，再依 小組編號 或 直接輸入個人姓名 搜尋</span>
+            <span className="or-hint-line" style={S.orLine} />
           </div>
 
           {/* 小組編號 Autocomplete */}
