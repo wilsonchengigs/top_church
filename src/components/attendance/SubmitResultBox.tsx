@@ -2,7 +2,9 @@ import type { AttendanceSubmitResult } from "../../types";
 
 export function SubmitResultBox({ result }: { result: AttendanceSubmitResult }) {
   const successItems = (result.results || []).filter((r) => r.success);
-  const failedItems = (result.results || []).filter((r) => !r.success);
+  const failedItems = (result.results || []).filter(
+    (r) => !r.success && !r.reason?.includes("尚未報名")
+  );
 
   return (
     <div
