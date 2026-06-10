@@ -151,16 +151,18 @@ export default function AttendanceApp() {
   const specialProgress = useMemo(() => {
     if (people.length === 0) return 0;
     let done = 0;
+    let total = 0;
     for (const p of people) {
       for (const s of [4, 5, 6]) {
         const status = p.sessions[s];
         const isPending = !!pendingChecks[`${p.name}_${s}`];
-        if (status === ATTENDANCE_STATUS.CHECKED || isPending) {
-          done++;
-        }
+        if (!status || status === ATTENDANCE_STATUS.NOT_REGISTERED) continue;
+        total++;
+        if (status === ATTENDANCE_STATUS.CHECKED || isPending) done++;
       }
     }
-    return Math.round((done / (people.length * 3)) * 100);
+    if (total === 0) return 0;
+    return Math.round((done / total) * 100);
   }, [people, pendingChecks]);
 
   const pendingCount = useMemo(
